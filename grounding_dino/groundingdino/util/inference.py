@@ -35,20 +35,19 @@ def load_model(model_config_path: str, model_checkpoint_path: str, device: str =
     model.eval()
     return model
 
-
-def load_image(image_path: str) -> Tuple[np.array, torch.Tensor]:
+def load_image(image_path, image_dim = 1024) -> Tuple[np.array, torch.Tensor]:
     transform = T.Compose(
         [
-            T.RandomResize([800], max_size=1333),
+            #T.RandomResize([image_dim], max_size=1333),
             T.ToTensor(),
             T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         ]
     )
     image_source = Image.open(image_path).convert("RGB")
+    image_source = image_source.resize((image_dim, image_dim), Image.LANCZOS)
     image = np.asarray(image_source)
     image_transformed, _ = transform(image_source, None)
     return image, image_transformed
-
 
 def predict(
         model,
