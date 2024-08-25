@@ -44,7 +44,7 @@ def load_image(image_path, image_dim = 1280) -> Tuple[np.array, torch.Tensor]:
         ]
     )
     image_source = Image.open(image_path).convert("RGB")
-    image_source = image_source.resize((image_dim, image_dim), Image.LANCZOS)
+    image_source = image_source.resize((image_dim, image_dim), Image.BICUBIC)
     image = np.asarray(image_source)
     image_transformed, _ = transform(image_source, None)
     return image, image_transformed
