@@ -35,7 +35,7 @@ def load_model(model_config_path: str, model_checkpoint_path: str, device: str =
     model.eval()
     return model
 
-def load_image(image_path, image_dim = 1280) -> Tuple[np.array, torch.Tensor]:
+def load_image(image_path, image_dim = 1024) -> Tuple[np.array, torch.Tensor]:
     transform = T.Compose(
         [
             T.RandomResize([800], max_size=1333),
