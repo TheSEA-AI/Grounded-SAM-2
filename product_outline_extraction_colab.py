@@ -739,7 +739,14 @@ def image_outline_re_extraction_by_mask_multiple_product_types(grounding_model, 
 if __name__ == "__main__":
     args = parse_args()
     device = torch.device(args.gpu_id)
-    
+    # use float16 for the entire notebook
+    torch.autocast(device_type="cuda", dtype=torch.float16).__enter__()
+
+    if torch.cuda.get_device_properties(0).major >= 8:
+        # turn on tfloat32 for Ampere GPUs (https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices)
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+
     try:
         # build SAM2 image predictor
         sam2_checkpoint = "./checkpoints/sam2_hiera_base_plus.pt"#sam2_hiera_base_plus.pt, sam2_hiera_large.pt
