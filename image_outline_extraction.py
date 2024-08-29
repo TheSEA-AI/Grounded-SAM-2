@@ -71,7 +71,7 @@ def parse_args(input_args=None):
                         help="gpu id")
 
     parser.add_argument("--hed_value", 
-                        default=200, 
+                        default=180, 
                         type=int, 
                         required=False,
                         help="The hed value for product")
@@ -204,7 +204,7 @@ if __name__ == "__main__":
         # turn on tfloat32 for Ampere GPUs (https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices)
         torch.backends.cuda.matmul.allow_tf32 = True
         torch.backends.cudnn.allow_tf32 = True
-        
+
     try: 
         # build SAM2 image predictor
         sam2_checkpoint = "./checkpoints/sam2_hiera_base_plus.pt"#sam2_hiera_base_plus.pt, sam2_hiera_large.pt
