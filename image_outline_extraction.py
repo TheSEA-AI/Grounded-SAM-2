@@ -1,6 +1,8 @@
 import os, sys
 import gc
-sys.path.append(os.path.join(os.getcwd(), "ControlNOLA"))
+
+sys.path.append('/home/ec2-user/webui-server/ControlNOLA')
+#sys.path.append(os.path.join(os.getcwd(), "ControlNOLA"))
 
 import argparse
 import copy
