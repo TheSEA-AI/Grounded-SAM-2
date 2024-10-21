@@ -46,7 +46,7 @@ def load_image(image_path, image_dim = 1024) -> Tuple[np.array, torch.Tensor]:
     #image_source = Image.open(image_path).convert("RGB")
 
     # Ensure the image has an alpha channel
-    image_raw = Image.open(image_path).convert("RGB")
+    image_raw = Image.open(image_path)
     if image_raw.mode in ('RGBA', 'LA') or (image_raw.mode == 'P' and 'transparency' in image_raw.info):
         # Create a white background image of the same size
         background = Image.new('RGBA', image_raw.size, (255, 255, 255, 255))  # White background
