@@ -43,7 +43,21 @@ def load_image(image_path, image_dim = 1024) -> Tuple[np.array, torch.Tensor]:
             T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         ]
     )
-    image_source = Image.open(image_path).convert("RGB")
+    #image_source = Image.open(image_path).convert("RGB")
+
+    # Ensure the image has an alpha channel
+    image_raw = Image.open(image_path).convert("RGB")
+    if image_raw.mode in ('RGBA', 'LA') or (image_raw.mode == 'P' and 'transparency' in image_raw.info):
+        # Create a white background image of the same size
+        background = Image.new('RGBA', image_raw.size, (255, 255, 255, 255))  # White background
+        # Paste the image on the white background using the alpha channel as a mask
+        background.paste(image_raw, (0, 0), image_raw)
+        # Convert the image to RGB mode (to remove the alpha channel)
+        image_source = background.convert('RGB')
+    else:
+        # If the image doesn't have transparency, no change is needed
+        image_source = image_raw.convert('RGB')
+
     image_source = image_source.resize((image_dim, image_dim), Image.BICUBIC)
     image = np.asarray(image_source)
     image_transformed, _ = transform(image_source, None)
