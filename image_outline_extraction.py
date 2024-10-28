@@ -176,7 +176,19 @@ def image_outline_extraction_by_mask_multiple_product_types(args, grounding_mode
         mask = cv2.dilate(mask, kernel, iterations=3)
         mask = np.array(mask, dtype=bool)
 
-        img = Image.open(img_path).convert("RGB")
+        image_raw = Image.open(img_path)#.convert("RGB")
+        if image_raw.mode in ('RGBA', 'LA') or (image_raw.mode == 'P' and 'transparency' in image_raw.info):
+            # Create a white background image of the same size
+            img = Image.new('RGBA', image_raw.size, (255, 255, 255, 255))  # White background
+            # Paste the image on the white background using the alpha channel as a mask
+            image_raw = image_raw.convert('RGBA')
+            img.paste(image_raw, mask=image_raw.split()[3])
+            # Convert the image to RGB mode (to remove the alpha channel)
+            img = img.convert('RGB')
+        else:
+            # If the image doesn't have transparency, no change is needed
+            img = image_raw.convert('RGB')
+            
         img = img.resize((image_dim, image_dim), Image.LANCZOS)
         image_array = np.asarray(img)
 
