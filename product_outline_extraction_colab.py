@@ -193,7 +193,19 @@ def product_outline_extraction_by_mask_multiple_product_types(args, grounding_mo
         mask = cv2.dilate(mask, kernel, iterations=3)
         mask = np.array(mask, dtype=bool)
 
-        img = Image.open(img_path).convert("RGB")
+        image_raw = Image.open(img_path)#.convert("RGB")
+        if image_raw.mode in ('RGBA', 'LA') or (image_raw.mode == 'P' and 'transparency' in image_raw.info):
+            # Create a white background image of the same size
+            img = Image.new('RGBA', image_raw.size, (255, 255, 255, 255))  # White background
+            # Paste the image on the white background using the alpha channel as a mask
+            image_raw = image_raw.convert('RGBA')
+            img.paste(image_raw, mask=image_raw.split()[3])
+            # Convert the image to RGB mode (to remove the alpha channel)
+            img = img.convert('RGB')
+        else:
+            # If the image doesn't have transparency, no change is needed
+            img = image_raw.convert('RGB')
+
         img = img.resize((image_dim, image_dim), Image.LANCZOS)
         image_array = np.asarray(img)
 
@@ -339,7 +351,22 @@ def filter_hed(args, data_hed_background_dir, data_similarity_dict, similarity_t
                 contours2,hierarchy2 = cv2.findContours(thresh2,cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
                 if len(contours2) > 2:
                     img_shape = (1024, 1024)
-                    tmp_image = np.asarray(Image.open(img_path).convert("RGB"))
+                    #tmp_image = np.asarray(Image.open(img_path).convert("RGB"))
+                    image_raw = Image.open(img_path)#.convert("RGB")
+                    if image_raw.mode in ('RGBA', 'LA') or (image_raw.mode == 'P' and 'transparency' in image_raw.info):
+                        # Create a white background image of the same size
+                        tmp_image = Image.new('RGBA', image_raw.size, (255, 255, 255, 255))  # White background
+                        # Paste the image on the white background using the alpha channel as a mask
+                        image_raw = image_raw.convert('RGBA')
+                        tmp_image.paste(image_raw, mask=image_raw.split()[3])
+                        # Convert the image to RGB mode (to remove the alpha channel)
+                        tmp_image = tmp_image.convert('RGB')
+                    else:
+                        # If the image doesn't have transparency, no change is needed
+                        tmp_image = image_raw.convert('RGB')
+
+                    tmp_image = np.asarray(tmp_image)
+
                     for cnt2 in contours2:
                         tmp_similarity = 10000
                         for product_image in product_images:
@@ -490,7 +517,20 @@ def product_hed_transparent_bg(args, product_images, data_hed_background_dir):
             if area_cnt2 <= 1.6*area_cnt1:
               mask  = make_mask_contour(img_shape, contours2[0].reshape(-1,2)).astype(np.uint8)*255
               mask = np.stack((mask,)*3, axis=-1)
-              tmp_image = Image.open(img_path).convert("RGB")
+              #tmp_image = Image.open(img_path).convert("RGB")
+              image_raw = Image.open(img_path)#.convert("RGB")
+              if image_raw.mode in ('RGBA', 'LA') or (image_raw.mode == 'P' and 'transparency' in image_raw.info):
+                # Create a white background image of the same size
+                tmp_image = Image.new('RGBA', image_raw.size, (255, 255, 255, 255))  # White background
+                # Paste the image on the white background using the alpha channel as a mask
+                image_raw = image_raw.convert('RGBA')
+                tmp_image.paste(image_raw, mask=image_raw.split()[3])
+                # Convert the image to RGB mode (to remove the alpha channel)
+                tmp_image = tmp_image.convert('RGB')
+              else:
+                # If the image doesn't have transparency, no change is needed
+                tmp_image = image_raw.convert('RGB')
+
               mask_img = Image.fromarray(mask).convert('L')
               tmp_image.putalpha(mask_img)
               tmp_image.save(data_hed_transparent_dir+'/'+img_name, 'png')
@@ -507,7 +547,20 @@ def product_hed_transparent_bg(args, product_images, data_hed_background_dir):
 
                   mask  = make_mask_contour(img_shape, cnt2.reshape(-1,2)).astype(np.uint8)*255
                   mask = np.stack((mask,)*3, axis=-1)
-                  tmp_image = Image.open(img_path).convert("RGB")
+                  #tmp_image = Image.open(img_path).convert("RGB")
+                  image_raw = Image.open(img_path)#.convert("RGB")
+                  if image_raw.mode in ('RGBA', 'LA') or (image_raw.mode == 'P' and 'transparency' in image_raw.info):
+                    # Create a white background image of the same size
+                    tmp_image = Image.new('RGBA', image_raw.size, (255, 255, 255, 255))  # White background
+                    # Paste the image on the white background using the alpha channel as a mask
+                    image_raw = image_raw.convert('RGBA')
+                    tmp_image.paste(image_raw, mask=image_raw.split()[3])
+                    # Convert the image to RGB mode (to remove the alpha channel)
+                    tmp_image = tmp_image.convert('RGB')
+                  else:
+                    # If the image doesn't have transparency, no change is needed
+                    tmp_image = image_raw.convert('RGB')
+
                   mask_img = Image.fromarray(mask).convert('L')
                   tmp_image.putalpha(mask_img)
                   tmp_image.save(data_hed_transparent_dir+'/'+str(index)+img_name, 'png')
@@ -522,7 +575,20 @@ def product_hed_transparent_bg(args, product_images, data_hed_background_dir):
                     rec_center.append(rec[0])
                     mask  = make_mask_contour(img_shape, cnt2.reshape(-1,2)).astype(np.uint8)*255
                     mask = np.stack((mask,)*3, axis=-1)
-                    tmp_image = Image.open(img_path).convert("RGB")
+                    #tmp_image = Image.open(img_path).convert("RGB")
+                    image_raw = Image.open(img_path)#.convert("RGB")
+                    if image_raw.mode in ('RGBA', 'LA') or (image_raw.mode == 'P' and 'transparency' in image_raw.info):
+                        # Create a white background image of the same size
+                        tmp_image = Image.new('RGBA', image_raw.size, (255, 255, 255, 255))  # White background
+                        # Paste the image on the white background using the alpha channel as a mask
+                        image_raw = image_raw.convert('RGBA')
+                        tmp_image.paste(image_raw, mask=image_raw.split()[3])
+                        # Convert the image to RGB mode (to remove the alpha channel)
+                        tmp_image = tmp_image.convert('RGB')
+                    else:
+                        # If the image doesn't have transparency, no change is needed
+                        tmp_image = image_raw.convert('RGB')
+
                     mask_img = Image.fromarray(mask).convert('L')
                     tmp_image.putalpha(mask_img)
                     tmp_image.save(data_hed_transparent_dir+'/'+str(index)+img_name, 'png')
@@ -684,7 +750,19 @@ def image_outline_re_extraction_by_mask_multiple_product_types(grounding_model, 
     mask = cv2.dilate(mask, kernel, iterations=3)
     mask = np.array(mask, dtype=bool)
 
-    img = Image.open(img_path).convert("RGB")
+    image_raw = Image.open(img_path)#.convert("RGB")
+    if image_raw.mode in ('RGBA', 'LA') or (image_raw.mode == 'P' and 'transparency' in image_raw.info):
+        # Create a white background image of the same size
+        img = Image.new('RGBA', image_raw.size, (255, 255, 255, 255))  # White background
+        # Paste the image on the white background using the alpha channel as a mask
+        image_raw = image_raw.convert('RGBA')
+        img.paste(image_raw, mask=image_raw.split()[3])
+        # Convert the image to RGB mode (to remove the alpha channel)
+        img = img.convert('RGB')
+    else:
+        # If the image doesn't have transparency, no change is needed
+        img = image_raw.convert('RGB')
+
     img = img.resize((image_dim, image_dim), Image.LANCZOS)
     image_array = np.asarray(img)
 
