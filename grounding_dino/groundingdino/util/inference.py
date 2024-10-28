@@ -52,7 +52,7 @@ def load_image(image_path, image_dim = 1024) -> Tuple[np.array, torch.Tensor]:
         background = Image.new('RGBA', image_raw.size, (255, 255, 255, 255))  # White background
         # Paste the image on the white background using the alpha channel as a mask
         #background.paste(image_raw, (0, 0), image_raw)
-        background.paste(img, mask=img.split()[3])
+        background.paste(image_raw, mask=image_raw.split()[3])
         # Convert the image to RGB mode (to remove the alpha channel)
         image_source = background.convert('RGB')
     else:
