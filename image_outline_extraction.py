@@ -87,12 +87,12 @@ def parse_args(input_args=None):
     
 ##the latest version with multiple product types and filling holes etc.
 ##the holes are becasue of SAM noise
-def image_outline_extraction_by_mask_multiple_product_types(args, grounding_model, sam2_predictor, intput_dir, output_dir, img_format = 'png', image_resolution = 1024, device='cuda'):
+def image_outline_extraction_by_mask_multiple_product_types(args, grounding_model, sam2_predictor, input_dir, output_dir, img_format = 'png', image_resolution = 1024, device='cuda'):
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-    image_filename_list = [i for i in os.listdir(intput_dir)]
-    images_path = [os.path.join(intput_dir, file_path)
+    image_filename_list = [i for i in os.listdir(input_dir)]
+    images_path = [os.path.join(input_dir, file_path)
                         for file_path in image_filename_list]
 
     hedDetector = HEDdetector()
