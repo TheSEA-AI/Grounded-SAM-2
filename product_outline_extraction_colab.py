@@ -826,8 +826,8 @@ def product_transparent_bg(args, data_hed_transparent_dir):
     data_product_transparent_dir += 'data_product_transparent'
     Path(data_product_transparent_dir).mkdir(parents=True, exist_ok=True)
 
-    image_filename_list = [i for i in os.listdir(args.intput_dir)]
-    images_path = [os.path.join(args.intput_dir, file_path)
+    image_filename_list = [i for i in os.listdir(args.input_dir)]
+    images_path = [os.path.join(args.input_dir, file_path)
                         for file_path in image_filename_list]
     
     image_hed_filename_list = [i for i in os.listdir(data_hed_transparent_dir)]
