@@ -563,7 +563,10 @@ def product_hed_transparent_bg(args, product_images, data_hed_background_dir):
 
                   mask_img = Image.fromarray(mask).convert('L')
                   tmp_image.putalpha(mask_img)
-                  tmp_image.save(data_hed_transparent_dir+'/'+str(index)+img_name, 'png')
+                  if index == 0:
+                      tmp_image.save(data_hed_transparent_dir+'/'+img_name, 'png')
+                  else:
+                      tmp_image.save(data_hed_transparent_dir+'/'+str(index)+img_name, 'png')
                   index += 1
                 elif rec[0] not in rec_center:
                   dist = 1000
@@ -591,7 +594,10 @@ def product_hed_transparent_bg(args, product_images, data_hed_background_dir):
 
                     mask_img = Image.fromarray(mask).convert('L')
                     tmp_image.putalpha(mask_img)
-                    tmp_image.save(data_hed_transparent_dir+'/'+str(index)+img_name, 'png')
+                    if index == 0:
+                        tmp_image.save(data_hed_transparent_dir+'/'+img_name, 'png')
+                    else:
+                        tmp_image.save(data_hed_transparent_dir+'/'+str(index)+img_name, 'png')
                     index += 1
     
     return data_hed_transparent_dir
