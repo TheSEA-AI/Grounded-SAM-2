@@ -562,7 +562,11 @@ def product_hed_transparent_bg(args, product_images, data_hed_background_dir):
 
                   mask_img = Image.fromarray(mask).convert('L')
                   tmp_image.putalpha(mask_img)
-                  tmp_image.save(data_hed_transparent_dir+'/'+str(index)+img_name, 'png')
+                  #tmp_image.save(data_hed_transparent_dir+'/'+str(index)+img_name, 'png')
+                  if index == 0:
+                      tmp_image.save(data_hed_transparent_dir+'/'+img_name, 'png')
+                  else:
+                      tmp_image.save(data_hed_transparent_dir+'/'+str(index)+img_name, 'png')
                   index += 1
                 elif rec[0] not in rec_center:
                   dist = 1000
@@ -590,9 +594,14 @@ def product_hed_transparent_bg(args, product_images, data_hed_background_dir):
 
                     mask_img = Image.fromarray(mask).convert('L')
                     tmp_image.putalpha(mask_img)
-                    tmp_image.save(data_hed_transparent_dir+'/'+str(index)+img_name, 'png')
+                    #tmp_image.save(data_hed_transparent_dir+'/'+str(index)+img_name, 'png')
+                    if index == 0:
+                        tmp_image.save(data_hed_transparent_dir+'/'+img_name, 'png')
+                    else:
+                        tmp_image.save(data_hed_transparent_dir+'/'+str(index)+img_name, 'png')
                     index += 1
 
+    return data_hed_transparent_dir
 
 ## check whether hed is over-extracted
 def examine_image_hed(args, grounding_model, sam2_predictor, product_images, data_dir, data_hed_dir, data_similarity_dict, similarity_threshold = 0.916, device='cuda'):
@@ -813,6 +822,39 @@ def image_outline_re_extraction_by_mask_multiple_product_types(grounding_model, 
     img_masked = Image.fromarray(hed)
     img_masked.save(output_path, img_format)
 
+
+# extract product with transparent background
+def product_transparent_bg(args, data_hed_transparent_dir):
+    
+    ## create data_hed_transparent_dir
+    image_dirs = data_hed_transparent_dir.split('/')
+    data_product_transparent_dir = '/'+image_dirs[0]
+    for i in range(1, len(image_dirs)-1):
+        data_product_transparent_dir += image_dirs[i] + '/'
+    data_product_transparent_dir += 'data_product_transparent'
+    Path(data_product_transparent_dir).mkdir(parents=True, exist_ok=True)
+
+    image_filename_list = [i for i in os.listdir(args.input_dir)]
+    images_path = [os.path.join(args.input_dir, file_path)
+                        for file_path in image_filename_list]
+    
+    image_hed_filename_list = [i for i in os.listdir(data_hed_transparent_dir)]
+    images_hed_path = [os.path.join(data_hed_transparent_dir, file_path)
+                        for file_path in image_hed_filename_list]
+    
+    for img_name, img_path in zip(image_filename_list, images_path):
+        product_image = Image.open(img_path)
+        product_image = product_image.convert("RGBA")
+        for img_hed_name, img_hed_path in zip(image_hed_filename_list, images_hed_path):
+            if img_name in img_hed_name:
+                hed_image = Image.open(img_hed_path)
+                product_image = product_image.resize(hed_image.size, Image.LANCZOS)
+                if hed_image.mode == 'RGBA':
+                    _, _, _, alpha = hed_image.split()
+                    product_image.putalpha(alpha)
+                    product_image.save(data_product_transparent_dir+'/'+img_hed_name, 'png')
+
+
 ##### for extracting hed images where the inner lines of produts are removed
 if __name__ == "__main__":
     args = parse_args()
@@ -852,7 +894,8 @@ if __name__ == "__main__":
             data_similarity_dict_all = filter_data(args, args.output_dir, args.data_hed_dir, args.product_images)
             data_hed_bg_original = filter_hed(args, args.output_dir, data_similarity_dict_all, args.similarity_threshold, args.product_images)
             examine_image_hed(args, grounding_model, sam2_predictor, args.product_images, args.input_dir, args.data_hed_dir, data_similarity_dict_all, args.similarity_threshold, device=device)
-            product_hed_transparent_bg(args, args.product_images, data_hed_bg_original)
+            data_hed_transparent_dir = product_hed_transparent_bg(args, args.product_images, data_hed_bg_original)
+            product_transparent_bg(args, data_hed_transparent_dir)
         print(f'product outline extraction process finished.')
     except:
         raise
