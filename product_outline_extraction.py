@@ -81,7 +81,7 @@ def parse_args(input_args=None):
                     help="The background image with the product")
 
     parser.add_argument("--similarity_threshold", 
-                        default=2.5#0.916, 
+                        default=2.5,#0.916, 
                         type=float, 
                         required=False,
                         help="The threshold to remove hed images")
