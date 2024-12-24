@@ -41,6 +41,7 @@ from torchvision import transforms
 
 import locale
 locale.getpreferredencoding = lambda: "UTF-8"
+import traceback
 
 def parse_args(input_args=None):
     parser = argparse.ArgumentParser(description="Simple example of product position extraction based on Grouned SAM.")
@@ -898,7 +899,7 @@ if __name__ == "__main__":
             product_transparent_bg(args, data_hed_transparent_dir)
         print(f'product outline extraction process finished.')
     except:
-        raise
+        traceback.print_exc()
     finally:
         del sam2_model
         del sam2_predictor
