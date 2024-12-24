@@ -893,7 +893,7 @@ if __name__ == "__main__":
             product_transparent_bg(args, data_hed_transparent_dir)
         print(f'product outline extraction process finished.')
     except:
-        raise
+        traceback.print_exc()
     finally:
         del sam2_model
         del sam2_predictor
