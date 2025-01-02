@@ -30,6 +30,7 @@ SOURCE_VIDEO_FRAME_DIR = "./custom_video_frames"
 SAVE_TRACKING_RESULTS_DIR = "./tracking_results"
 API_TOKEN_FOR_GD1_5 = "Your API token"
 PROMPT_TYPE_FOR_VIDEO = "box" # choose from ["point", "box", "mask"]
+BOX_THRESHOLD = 0.2
 
 """
 Step 1: Environment settings and model initialization for SAM 2
@@ -43,8 +44,8 @@ if torch.cuda.get_device_properties(0).major >= 8:
     torch.backends.cudnn.allow_tf32 = True
 
 # init sam image predictor and video predictor model
-sam2_checkpoint = "./checkpoints/sam2_hiera_large.pt"
-model_cfg = "sam2_hiera_l.yaml"
+sam2_checkpoint = "./checkpoints/sam2.1_hiera_large.pt"
+model_cfg = "configs/sam2.1/sam2.1_hiera_l.yaml"
 
 video_predictor = build_sam2_video_predictor(model_cfg, sam2_checkpoint)
 sam2_image_model = build_sam2(model_cfg, sam2_checkpoint)
@@ -108,6 +109,7 @@ task = DetectionTask(
     prompts=[TextPrompt(text=TEXT_PROMPT)],
     targets=[DetectionTarget.BBox],  # detect bbox
     model=DetectionModel.GDino1_6_Pro,  # detect with GroundingDino-1.5-Pro model
+    bbox_threshold=BOX_THRESHOLD,
 )
 
 client.run_task(task)
