@@ -862,8 +862,9 @@ if __name__ == "__main__":
     device = torch.device(args.gpu_id)
     
     # use float16 for the entire notebook
-    torch.autocast(device_type="cuda:"+str(args.gpu_id), dtype=torch.float16).__enter__()
-    torch.autocast(device_type="cuda:0", dtype=torch.float16).__enter__()
+    #torch.autocast(device_type="cuda:"+str(args.gpu_id), dtype=torch.float16).__enter__()
+    #torch.autocast(device_type="cuda:0", dtype=torch.float16).__enter__()
+    torch.autocast(device_type="cuda", dtype=torch.float16).__enter__()
     
 
     if torch.cuda.get_device_properties(0).major >= 8:
