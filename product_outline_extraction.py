@@ -190,7 +190,7 @@ def product_outline_extraction_by_mask_multiple_product_types(args, grounding_mo
 
         mask = ~mask_all
         mask = mask.astype(np.uint8)
-        mask = cv2.dilate(mask, kernel, iterations=3)
+        mask = cv2.dilate(mask, kernel, iterations=3) # contour preserving
         mask = np.array(mask, dtype=bool)
 
         image_raw = Image.open(img_path)#.convert("RGB")
@@ -209,6 +209,7 @@ def product_outline_extraction_by_mask_multiple_product_types(args, grounding_mo
         img = img.resize((image_dim, image_dim), Image.LANCZOS)
         image_array = np.asarray(img)
 
+        # contour segmentation
         white_array = np.ones_like(image_array) * args.hed_value
         white_array = white_array * mask_all
         white_array = white_array * mask
@@ -257,7 +258,7 @@ def filter_hed(args, data_hed_background_dir, data_similarity_dict, similarity_t
         img1[img1 > 60] = args.hed_value
         img1[img1 <= 60] = 0
         ret1, thresh1 = cv2.threshold(img1, 127, 255,0)
-        contours1,hierarchy1 = cv2.findContours(thresh1,2,1)
+        contours1, hierarchy1 = cv2.findContours(thresh1,2,1)
         cnt1 = contours1[0]
         area_cnt1 = cv2.contourArea(cnt1)
 
@@ -268,7 +269,7 @@ def filter_hed(args, data_hed_background_dir, data_similarity_dict, similarity_t
                 img2[img2 > 60] = args.hed_value
                 img2[img2 <= 60] = 0
                 ret2, thresh2 = cv2.threshold(img2, 127, 255,0)
-                contours2,hierarchy2 = cv2.findContours(thresh2,cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                contours2, hierarchy2 = cv2.findContours(thresh2,cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
                 if len(contours2) <=2 and len(contours2) > 0:
                     cnt2 = contours2[0]
                     ret = cv2.matchShapes(cnt1,cnt2,1,0.0)
