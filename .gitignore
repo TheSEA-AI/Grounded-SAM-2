@@ -145,8 +145,3 @@ dmypy.json
 outputs/
 
 .idea/
-
-# ignore outputs
-max_6/
-tmp_seg/
-sam2auto_seg/
