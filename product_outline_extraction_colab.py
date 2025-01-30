@@ -28,6 +28,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Union
+import traceback
 
 ## annotation
 from ControlNOLA.annotator.hed import HEDdetector, nms
@@ -874,8 +875,8 @@ if __name__ == "__main__":
 
     try:
         # build SAM2 image predictor
-        sam2_checkpoint = "./checkpoints/sam2_hiera_base_plus.pt"#sam2_hiera_base_plus.pt, sam2_hiera_large.pt
-        model_cfg = "sam2_hiera_b+.yaml"#sam2_hiera_b+.yaml, sam2_hiera_l.yaml
+        sam2_checkpoint = "./checkpoints/sam2.1_hiera_base_plus.pt"#sam2_hiera_base_plus.pt, sam2_hiera_large.pt
+        model_cfg = "sam2.1_hiera_b+.yaml"#sam2_hiera_b+.yaml, sam2_hiera_l.yaml
         sam2_model = build_sam2(model_cfg, sam2_checkpoint, device=device)
         sam2_predictor = SAM2ImagePredictor(sam2_model)
 
