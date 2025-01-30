@@ -194,13 +194,13 @@ def image_outline_extraction_by_mask_multiple_product_types(args, grounding_mode
         image_array = np.asarray(img)
 
         #white_array = np.ones_like(image_array) * args.hed_value
-        white_array = np.ones((image_dim, image_dim, 3)) * args.hed_value
+        white_array = np.ones((image_dim, image_dim, 3), dtype=np.uint8) * args.hed_value
         white_array = white_array * mask_all
         white_array = white_array * mask
 
         hed = HWC3(image_array)
         hed = hedDetector(hed) 
-        hed = cv2.resize(hed, (image_resolution, image_resolution),interpolation=cv2.INTER_LINEAR)
+        hed = cv2.resize(hed, (image_resolution, image_resolution),interpolation=cv2.INTER_LINEAR).astype(np.uint8)
         hed = hed * mask_all[:,:,0]
         hed = HWC3(hed)
         hed = np.where(white_array>0, white_array, hed)
