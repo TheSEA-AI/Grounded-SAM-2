@@ -217,7 +217,7 @@ def product_outline_extraction_by_mask_multiple_product_types(args, grounding_mo
 
         hed = HWC3(image_array)
         hed = hedDetector(hed) 
-        hed = cv2.resize(hed, (image_resolution, image_resolution),interpolation=cv2.INTER_LINEAR).astype(np.uint8)
+        hed = cv2.resize(hed, (image_resolution, image_resolution),interpolation=cv2.INTER_LINEAR)#.astype(np.uint8)
         hed = hed * mask_all[:,:,0]
         hed = hed*mask[:,:,0]
         hed = HWC3(hed)
@@ -784,7 +784,7 @@ def image_outline_re_extraction_by_mask_multiple_product_types(grounding_model, 
 
     hed = HWC3(image_array)
     hed = hedDetector(hed) 
-    hed = cv2.resize(hed, (image_resolution, image_resolution),interpolation=cv2.INTER_LINEAR).astype(np.uint8)
+    hed = cv2.resize(hed, (image_resolution, image_resolution),interpolation=cv2.INTER_LINEAR)#.astype(np.uint8)
     hed = hed * mask_all[:,:,0]
     hed = HWC3(hed)
     hed = np.where(white_array>0, white_array, hed)
