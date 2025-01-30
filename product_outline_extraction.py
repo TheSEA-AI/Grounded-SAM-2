@@ -206,15 +206,18 @@ def product_outline_extraction_by_mask_multiple_product_types(args, grounding_mo
             # If the image doesn't have transparency, no change is needed
             img = image_raw.convert('RGB')
 
-        img = img.resize((image_dim, image_dim), Image.LANCZOS)
+        #img = img.resize((image_dim, image_dim), Image.LANCZOS)
         image_array = np.asarray(img)
 
-        white_array = np.ones_like(image_array) * args.hed_value
+        #white_array = np.ones_like(image_array) * args.hed_value
+        white_array = np.ones((image_dim, image_dim, 3)) * args.hed_value
         white_array = white_array * mask_all
         white_array = white_array * mask
 
         hed = HWC3(image_array)
-        hed = hedDetector(hed) * mask_all[:,:,0]
+        hed = hedDetector(hed) 
+        hed = cv2.resize(hed, (image_resolution, image_resolution),interpolation=cv2.INTER_LINEAR)
+        hed = hed * mask_all[:,:,0]
         hed = hed*mask[:,:,0]
         hed = HWC3(hed)
         hed = np.where(white_array>0, white_array, hed)
@@ -772,15 +775,18 @@ def image_outline_re_extraction_by_mask_multiple_product_types(grounding_model, 
         # If the image doesn't have transparency, no change is needed
         img = image_raw.convert('RGB')
             
-    img = img.resize((image_dim, image_dim), Image.LANCZOS)
+    #img = img.resize((image_dim, image_dim), Image.LANCZOS)
     image_array = np.asarray(img)
 
-    white_array = np.ones_like(image_array) * args.hed_value
+    #white_array = np.ones_like(image_array) * args.hed_value
+    white_array = np.ones((image_dim, image_dim, 3)) * args.hed_value
     white_array = white_array * mask_all
     white_array = white_array * mask
 
     hed = HWC3(image_array)
-    hed = hedDetector(hed) * mask_all[:,:,0]
+    hed = hedDetector(hed) 
+    hed = cv2.resize(hed, (image_resolution, image_resolution),interpolation=cv2.INTER_LINEAR)
+    hed = hed * mask_all[:,:,0]
     hed = HWC3(hed)
     hed = np.where(white_array>0, white_array, hed)
 
