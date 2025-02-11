@@ -230,7 +230,7 @@ def product_outline_extraction_by_mask_multiple_product_types(args, grounding_mo
         img_masked.save(img_save_path, img_format)
 
 ## function for data hed background filtering
-def filter_hed(args, data_hed_background_dir, data_similarity_dict, similarity_threshold, product_images, img_format = 'png'):
+def filter_hed(args, data_hed_background_dir, data_similarity_dict, similarity_threshold, product_images, img_format = 'png', image_dim=1024):
 
     large_value = 100
     kernel = np.ones((3, 3), np.uint8)
@@ -393,7 +393,7 @@ def filter_hed(args, data_hed_background_dir, data_similarity_dict, similarity_t
                           tmp_mask = cv2.dilate(tmp_mask, kernel, iterations=3)
                           tmp_mask = np.array(tmp_mask, dtype=bool)
 
-                          tmp_white_array = np.ones_like(tmp_image) * args.hed_value
+                          tmp_white_array = np.ones((image_dim, image_dim, 3), dtype=np.uint8) * args.hed_value#np.ones_like(tmp_image) * args.hed_value
                           tmp_white_array = tmp_white_array * mask
                           tmp_white_array = tmp_white_array * tmp_mask
                           tmp_image = Image.fromarray(tmp_white_array)
@@ -820,7 +820,7 @@ def image_outline_re_extraction_by_mask_multiple_product_types(grounding_model, 
       tmp_mask = cv2.dilate(tmp_mask, kernel, iterations=3)
       tmp_mask = np.array(tmp_mask, dtype=bool)
 
-      tmp_white_array = np.ones_like(image_array) * args.hed_value
+      tmp_white_array = np.ones((image_dim, image_dim, 3), dtype=np.uint8) * args.hed_value#np.ones_like(image_array) * args.hed_value
       tmp_white_array = tmp_white_array * individual_mask
       tmp_white_array = tmp_white_array * tmp_mask
       hed = np.where(tmp_white_array>0, tmp_white_array, hed)
