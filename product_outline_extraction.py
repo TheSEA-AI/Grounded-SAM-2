@@ -902,7 +902,9 @@ if __name__ == "__main__":
             data_similarity_dict_all = filter_data(args, args.output_dir, args.data_hed_dir, args.product_images)
             data_hed_bg_original = filter_hed(args, args.output_dir, data_similarity_dict_all, args.similarity_threshold, args.product_images)
             examine_image_hed(args, grounding_model, sam2_predictor, args.product_images, args.input_dir, args.data_hed_dir, data_similarity_dict_all, args.similarity_threshold, device=device)
+            print(f'data_hed_transparent starts.')
             data_hed_transparent_dir = product_hed_transparent_bg(args, args.product_images, data_hed_bg_original)
+            print(f'data_hed_transparent print finished.')
             product_transparent_bg(args, data_hed_transparent_dir)
         print(f'product outline extraction process finished.')
     except:
