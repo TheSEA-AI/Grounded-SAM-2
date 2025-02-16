@@ -92,6 +92,12 @@ def parse_args(input_args=None):
                         type=int, 
                         required=False,
                         help="The hed value for product")
+    
+    parser.add_argument("--candidate_num",
+                        default=2, 
+                        type=int, 
+                        required=False,
+                        help="The number of candidates for data hed background images")
 
     if input_args is not None:
         args = parser.parse_args(input_args)
@@ -230,7 +236,7 @@ def product_outline_extraction_by_mask_multiple_product_types(args, grounding_mo
         img_masked.save(img_save_path, img_format)
 
 ## function for data hed background filtering
-def filter_hed(args, data_hed_background_dir, data_similarity_dict, similarity_threshold, product_images, img_format = 'png', image_dim=1024):
+def filter_hed(args, data_hed_background_dir, data_similarity_dict, similarity_threshold, product_images, candidate_num = 2, img_format = 'png', image_dim=1024):
 
     large_value = 100
     kernel = np.ones((3, 3), np.uint8)
@@ -400,7 +406,7 @@ def filter_hed(args, data_hed_background_dir, data_similarity_dict, similarity_t
                           tmp_image.save(img_path, img_format)
 
     ## remove more than 2 images
-    if len(candidates.keys()) > 2:
+    if len(candidates.keys()) > candidate_num:
         similarity_list = list(candidates.values())
         similarity_list.sort()
 
@@ -900,7 +906,7 @@ if __name__ == "__main__":
         #print(f'args.product_images={args.product_images}, len(args.product_images)={len(args.product_images)}')
         if args.product_images is not None:
             data_similarity_dict_all = filter_data(args, args.output_dir, args.data_hed_dir, args.product_images)
-            data_hed_bg_original = filter_hed(args, args.output_dir, data_similarity_dict_all, args.similarity_threshold, args.product_images)
+            data_hed_bg_original = filter_hed(args, args.output_dir, data_similarity_dict_all, args.similarity_threshold, args.product_images, candidate_num=args.candidate_num)
             examine_image_hed(args, grounding_model, sam2_predictor, args.product_images, args.input_dir, args.data_hed_dir, data_similarity_dict_all, args.similarity_threshold, device=device)
             data_hed_transparent_dir = product_hed_transparent_bg(args, args.product_images, data_hed_bg_original)
             product_transparent_bg(args, data_hed_transparent_dir)
