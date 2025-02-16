@@ -94,6 +94,12 @@ def parse_args(input_args=None):
                         required=False,
                         help="The hed value for product")
 
+    parser.add_argument("--candidate_num",
+                        default=2, 
+                        type=int, 
+                        required=False,
+                        help="The number of candidates for data hed background images")
+    
     if input_args is not None:
         args = parser.parse_args(input_args)
     else:
@@ -895,7 +901,7 @@ if __name__ == "__main__":
         #print(f'args.product_images={args.product_images}, len(args.product_images)={len(args.product_images)}')
         if len(args.product_images) > 0:
             data_similarity_dict_all = filter_data(args, args.output_dir, args.data_hed_dir, args.product_images)
-            data_hed_bg_original = filter_hed(args, args.output_dir, data_similarity_dict_all, args.similarity_threshold, args.product_images)
+            data_hed_bg_original = filter_hed(args, args.output_dir, data_similarity_dict_all, args.similarity_threshold, args.product_images, candidate_num=args.candidate_num)
             examine_image_hed(args, grounding_model, sam2_predictor, args.product_images, args.input_dir, args.data_hed_dir, data_similarity_dict_all, args.similarity_threshold, device=device)
             print(f'data_hed_transparent starts.')
             data_hed_transparent_dir = product_hed_transparent_bg(args, args.product_images, data_hed_bg_original)
