@@ -1,0 +1,10 @@
+opencv-python-headless
+supervision
+transformer
+addict
+yapf
+timm
+basicsr
+pycocotools
+einops
+accelerate

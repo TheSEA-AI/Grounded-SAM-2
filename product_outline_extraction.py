@@ -10,7 +10,7 @@ import argparse
 import copy
 from pathlib import Path
 
-from IPython.display import display
+#from IPython.display import display
 from PIL import Image, ImageDraw, ImageFont
 from torchvision.ops import box_convert
 
@@ -133,7 +133,8 @@ def product_outline_extraction_by_mask_multiple_product_types(args, grounding_mo
                 image=image,
                 caption=product_type,
                 box_threshold=0.35,
-                text_threshold=0.25
+                text_threshold=0.25,
+                #device=device,
             )
 
             # process the box prompt for SAM 2
@@ -166,7 +167,8 @@ def product_outline_extraction_by_mask_multiple_product_types(args, grounding_mo
                         continue
                     mask_all = mask_all & ~mask.astype(bool)
             else:
-                raise ValueError(f"the product outline in {img_name} cannot be extracted.")
+                print(f"the product outline in {img_name} cannot be extracted.")
+                #raise ValueError(f"the product outline in {img_name} cannot be extracted.")
 
 
         ##### fill holes inside product #######
@@ -871,18 +873,20 @@ def product_transparent_bg(args, data_hed_transparent_dir):
 ##### for extracting hed images where the inner lines of produts are removed
 if __name__ == "__main__":
     args = parse_args()
-    device = torch.device(args.gpu_id)
-    
-    # use float16 for the entire notebook
-    torch.autocast(device_type="cuda:"+str(args.gpu_id), dtype=torch.float16).__enter__()
-    torch.autocast(device_type="cuda:0", dtype=torch.float16).__enter__()
-    #torch.autocast(device_type="cuda", dtype=torch.float16).__enter__()
+    device = torch.device(args.gpu_id) if args.gpu_id>=0 else 'cpu'
+    assert device == 'cpu'
+
+    if device != 'cpu':
+        # use float16 for the entire notebook
+        torch.autocast(device_type="cuda:"+str(args.gpu_id), dtype=torch.float16).__enter__()
+        torch.autocast(device_type="cuda:0", dtype=torch.float16).__enter__()
+        #torch.autocast(device_type="cuda", dtype=torch.float16).__enter__()
     
 
-    if torch.cuda.get_device_properties(0).major >= 8:
-        # turn on tfloat32 for Ampere GPUs (https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices)
-        torch.backends.cuda.matmul.allow_tf32 = True
-        torch.backends.cudnn.allow_tf32 = True
+        if torch.cuda.get_device_properties(0).major >= 8:
+            # turn on tfloat32 for Ampere GPUs (https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices)
+            torch.backends.cuda.matmul.allow_tf32 = True
+            torch.backends.cudnn.allow_tf32 = True
         
     try:
         # build SAM2 image predictor
