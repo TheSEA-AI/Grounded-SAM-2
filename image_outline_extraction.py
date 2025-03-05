@@ -249,7 +249,7 @@ if __name__ == "__main__":
 
         #args.gpu_id=os.environ["CUDA_VISIBLE_DEVICES"]
         #device = "cuda" if torch.cuda.is_available() else "cpu"
-        print(f'device={device}')
+        #print(f'device={device}')
         image_outline_extraction_by_mask_multiple_product_types(args, grounding_model, sam2_predictor, args.input_dir, args.output_dir, args.img_format, device=device)
         print(f'image outline extraction process finished.')
         #row_position, col_position = row_col_position(args.img_path, args.product_type)
