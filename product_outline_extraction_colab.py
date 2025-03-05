@@ -407,7 +407,7 @@ def filter_hed(args, data_hed_background_dir, data_similarity_dict, similarity_t
                           tmp_image = Image.fromarray(tmp_white_array)
                           tmp_image.save(img_path, img_format)
 
-    ## remove more than 2 images
+    ## remove more than 2 hed background images
     if len(candidates.keys()) > candidate_num:
         similarity_list = list(candidates.values())
         similarity_list.sort()
