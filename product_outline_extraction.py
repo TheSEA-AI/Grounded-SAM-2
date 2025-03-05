@@ -416,7 +416,7 @@ def filter_hed(args, data_hed_background_dir, data_similarity_dict, similarity_t
             for img_name, img_path in zip(image_filename_list, images_path):
                 if img_name not in product_images:
                     if k == img_name:
-                        if v > similarity_list[1]:
+                        if v > similarity_list[candidate_num-1]:
                             os.remove(img_path)
 
     return new_image_dir

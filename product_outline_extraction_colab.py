@@ -238,7 +238,7 @@ def product_outline_extraction_by_mask_multiple_product_types(args, grounding_mo
         img_masked.save(img_save_path, img_format)
 
 ## function for data hed background filtering
-def filter_hed(args, data_hed_background_dir, data_similarity_dict, similarity_threshold, product_images, img_format = 'png', image_dim=1024):
+def filter_hed(args, data_hed_background_dir, data_similarity_dict, similarity_threshold, product_images, img_format = 'png', image_dim=1024, candidate_num=2):
 
     large_value = 100
     kernel = np.ones((3, 3), np.uint8)
@@ -408,7 +408,7 @@ def filter_hed(args, data_hed_background_dir, data_similarity_dict, similarity_t
                           tmp_image.save(img_path, img_format)
 
     ## remove more than 2 images
-    if len(candidates.keys()) > 2:
+    if len(candidates.keys()) > candidate_num:
         similarity_list = list(candidates.values())
         similarity_list.sort()
 
@@ -417,7 +417,7 @@ def filter_hed(args, data_hed_background_dir, data_similarity_dict, similarity_t
             for img_name, img_path in zip(image_filename_list, images_path):
                 if img_name not in product_images:
                     if k == img_name:
-                        if v > similarity_list[1]:
+                        if v > similarity_list[candidate_num-1]:
                             os.remove(img_path)
 
     return new_image_dir
