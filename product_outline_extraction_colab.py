@@ -134,7 +134,8 @@ def product_outline_extraction_by_mask_multiple_product_types(args, grounding_mo
                 image=image,
                 caption=product_type,
                 box_threshold=0.35,
-                text_threshold=0.25
+                text_threshold=0.25,
+                device = device
             )
 
             # process the box prompt for SAM 2
@@ -702,7 +703,8 @@ def image_outline_re_extraction_by_mask_multiple_product_types(grounding_model, 
                 image=image,
                 caption=product_type,
                 box_threshold=0.35,
-                text_threshold=0.25
+                text_threshold=0.25,
+                device = device
             )
 
         # process the box prompt for SAM 2
@@ -868,8 +870,8 @@ def product_transparent_bg(args, data_hed_transparent_dir):
 ##### for extracting hed images where the inner lines of produts are removed
 if __name__ == "__main__":
     args = parse_args()
-    device = torch.device(args.gpu_id)
-    torch.cuda.set_device(device)
+    device = torch.device('cuda')
+    torch.cuda.set_device(args.gpu_id)
     #device = torch.device("cpu")
     #device = 'cpu'
 
