@@ -869,17 +869,19 @@ def product_transparent_bg(args, data_hed_transparent_dir):
 if __name__ == "__main__":
     args = parse_args()
     #device = torch.device(args.gpu_id)
-    device = torch.device("cpu")
+    #device = torch.device("cpu")
+    device = 'cpu'
 
-    # use float16 for the entire notebook
-    #torch.autocast(device_type="cuda:"+str(args.gpu_id), dtype=torch.float16).__enter__()
-    #torch.autocast(device_type="cuda:0", dtype=torch.float16).__enter__()
-    torch.autocast(device_type="cpu", dtype=torch.float16).__enter__()
+    if device != 'cpu':
+        # use float16 for the entire notebook
+        torch.autocast(device_type="cuda:"+str(args.gpu_id), dtype=torch.float16).__enter__()
+        torch.autocast(device_type="cuda:0", dtype=torch.float16).__enter__()
+        #torch.autocast(device_type="cpu", dtype=torch.float16).__enter__()
 
-    if torch.cuda.get_device_properties(0).major >= 8:
-        # turn on tfloat32 for Ampere GPUs (https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices)
-        torch.backends.cuda.matmul.allow_tf32 = True
-        torch.backends.cudnn.allow_tf32 = True
+        if torch.cuda.get_device_properties(0).major >= 8:
+            # turn on tfloat32 for Ampere GPUs (https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices)
+            torch.backends.cuda.matmul.allow_tf32 = True
+            torch.backends.cudnn.allow_tf32 = True
 
     try:
         # build SAM2 image predictor
