@@ -868,11 +868,13 @@ def product_transparent_bg(args, data_hed_transparent_dir):
 ##### for extracting hed images where the inner lines of produts are removed
 if __name__ == "__main__":
     args = parse_args()
-    device = torch.device(args.gpu_id)
+    #device = torch.device(args.gpu_id)
+    device = torch.device("cpu")
+
     # use float16 for the entire notebook
-    torch.autocast(device_type="cuda:"+str(args.gpu_id), dtype=torch.float16).__enter__()
-    torch.autocast(device_type="cuda:0", dtype=torch.float16).__enter__()
-    #torch.autocast(device_type="cuda", dtype=torch.float16).__enter__()
+    #torch.autocast(device_type="cuda:"+str(args.gpu_id), dtype=torch.float16).__enter__()
+    #torch.autocast(device_type="cuda:0", dtype=torch.float16).__enter__()
+    torch.autocast(device_type="cpu", dtype=torch.float16).__enter__()
 
     if torch.cuda.get_device_properties(0).major >= 8:
         # turn on tfloat32 for Ampere GPUs (https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices)
