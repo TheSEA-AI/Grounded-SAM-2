@@ -869,6 +869,56 @@ def product_transparent_bg(args, data_hed_transparent_dir):
                     product_image.putalpha(alpha)
                     product_image.save(data_product_transparent_dir+'/'+img_hed_name, 'png')
 
+    return data_product_transparent_dir
+
+def extract_mask_alpha(file_path):
+    image = Image.open(file_path)
+    _, _, _, alpha = image.split()
+    
+    return alpha
+
+def simple_hed_extraction_for_transparent_product(data_product_transparent_dir):
+    ## create data_hed_transparent_dir
+    image_dirs = data_product_transparent_dir.split('/')
+    data_product_hed_transparent_dir = '/'+image_dirs[0]
+    for i in range(1, len(image_dirs)-1):
+        data_product_hed_transparent_dir += image_dirs[i] + '/'
+    data_product_hed_transparent_dir += 'data_product_hed_transparent'
+    Path(data_product_hed_transparent_dir).mkdir(parents=True, exist_ok=True)
+
+    image_product_filename_list = [i for i in os.listdir(data_product_transparent_dir)]
+    images_product_path = [os.path.join(data_product_transparent_dir, file_path)
+                        for file_path in image_product_filename_list]
+
+    for img_name, img_product_path in zip(image_product_filename_list, images_product_path):
+        image_raw = Image.open(img_product_path)
+        if image_raw.mode in ('RGBA', 'LA') or (image_raw.mode == 'P' and 'transparency' in image_raw.info):
+            # Create a white background image of the same size
+            img = Image.new('RGBA', image_raw.size, (255, 255, 255, 255))  # White background
+            # Paste the image on the white background using the alpha channel as a mask
+            image_raw = image_raw.convert('RGBA')
+            img.paste(image_raw, mask=image_raw.split()[3])
+            # Convert the image to RGB mode (to remove the alpha channel)
+            img = img.convert('RGB')
+        else:
+            # If the image doesn't have transparency, no change is needed
+            img = image_raw.convert('RGB')
+        
+        #img = img.resize((image_dim, image_dim), Image.LANCZOS)
+        image_array = np.asarray(img)
+
+        hedDetector = HEDdetector()
+
+        hed = HWC3(image_array)
+        hed = hedDetector(hed) 
+        hed = HWC3(hed)
+        
+        img_masked = Image.fromarray(hed)
+        img_masked = img_masked.convert("RGBA")
+
+        alpha = extract_mask_alpha(img_product_path)
+        img_masked.putalpha(alpha)
+        img_masked.save(data_product_hed_transparent_dir+'/'+img_name, 'png')
 
 ##### for extracting hed images where the inner lines of produts are removed
 if __name__ == "__main__":
@@ -914,7 +964,8 @@ if __name__ == "__main__":
             data_hed_bg_original = filter_hed(args, args.output_dir, data_similarity_dict_all, args.similarity_threshold, args.product_images, candidate_num=args.candidate_num)
             examine_image_hed(args, grounding_model, sam2_predictor, args.product_images, args.input_dir, args.data_hed_dir, data_similarity_dict_all, args.similarity_threshold, device=device)
             data_hed_transparent_dir = product_hed_transparent_bg(args, args.product_images, data_hed_bg_original)
-            product_transparent_bg(args, data_hed_transparent_dir)
+            data_product_transparent_dir = product_transparent_bg(args, data_hed_transparent_dir)
+            simple_hed_extraction_for_transparent_product(data_product_transparent_dir)
         print(f'product outline extraction process finished.')
     except:
         traceback.print_exc()
