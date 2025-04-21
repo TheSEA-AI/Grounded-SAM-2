@@ -232,8 +232,8 @@ if __name__ == "__main__":
 
     try: 
         # build SAM2 image predictor
-        sam2_checkpoint = "/home/ec2-user/webui-server/Grounded_Segment_Anything_2/checkpoints/sam2_hiera_base_plus.pt"#sam2_hiera_base_plus.pt, sam2_hiera_large.pt
-        model_cfg = "sam2_hiera_b+.yaml"#sam2_hiera_b+.yaml, sam2_hiera_l.yaml
+        sam2_checkpoint = "/home/ec2-user/webui-server/Grounded_Segment_Anything_2/checkpoints/sam2_hiera_large.pt"#sam2_hiera_base_plus.pt, sam2_hiera_large.pt
+        model_cfg = "sam2_hiera_l.yaml"#sam2_hiera_b+.yaml, sam2_hiera_l.yaml
         sam2_model = build_sam2(model_cfg, sam2_checkpoint, device=device)
         sam2_predictor = SAM2ImagePredictor(sam2_model)
 
