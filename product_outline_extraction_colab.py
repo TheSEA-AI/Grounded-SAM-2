@@ -83,7 +83,7 @@ def parse_args(input_args=None):
                     help="The background image with the product")
 
     parser.add_argument("--similarity_threshold", 
-                        default=3, 
+                        default=0.916, 
                         type=float, 
                         required=False,
                         help="The threshold to remove hed images")
@@ -888,8 +888,8 @@ if __name__ == "__main__":
 
     try:
         # build SAM2 image predictor
-        sam2_checkpoint = "./checkpoints/sam2.1_hiera_large.pt"#sam2_hiera_base_plus.pt, sam2_hiera_large.pt
-        model_cfg = "sam2.1_hiera_l.yaml"#sam2_hiera_b+.yaml, sam2_hiera_l.yaml
+        sam2_checkpoint = "./checkpoints/sam2_hiera_base_plus.pt"#sam2_hiera_base_plus.pt, sam2_hiera_large.pt
+        model_cfg = "sam2_hiera_b+.yaml"#sam2_hiera_b+.yaml, sam2_hiera_l.yaml
         sam2_model = build_sam2(model_cfg, sam2_checkpoint, device=device)
         sam2_predictor = SAM2ImagePredictor(sam2_model)
 
