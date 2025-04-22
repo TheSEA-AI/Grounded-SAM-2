@@ -687,7 +687,7 @@ def product_hed_transparent_bg(args, product_images, data_hed_background_dir):
         if len(contours2) !=0:
           if len(contours2) == 2:
             area_cnt2 = cv2.contourArea(contours2[0])
-            if area_cnt2 <= 3.0*area_cnt1:
+            if area_cnt2 <= 5.0*area_cnt1:
               mask  = make_mask_contour(img_shape, contours2[0].reshape(-1,2)).astype(np.uint8)*255
               mask = np.stack((mask,)*3, axis=-1)
               #tmp_image = Image.open(img_path).convert("RGB")
@@ -714,7 +714,7 @@ def product_hed_transparent_bg(args, product_images, data_hed_background_dir):
               area_cnt2 = cv2.contourArea(cnt2)
               rec = cv2.minAreaRect(cnt2)
 
-              if area_cnt2 >= 0.33*area_cnt1 and area_cnt2 <= 3.0*area_cnt1:
+              if area_cnt2 >= 0.2*area_cnt1 and area_cnt2 <= 5.0*area_cnt1:
                 if len(rec_center) == 0:
                   rec_center.append(rec[0])
 
