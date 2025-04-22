@@ -1068,7 +1068,7 @@ if __name__ == "__main__":
         #torch.autocast(device_type="cuda", dtype=torch.bfloat16).__enter__()
 
         product_outline_extraction_by_mask_multiple_product_types(args, grounding_model, sam2_predictor, args.input_dir, args.output_dir, args.img_format, device=device)
-        has_two_parts = check_product_plain_hed(args.input_dir)
+        has_two_parts = check_product_plain_hed(args.output_dir)
         if has_two_parts:
             product_outline_extraction_by_mask_multiple_product_types_for_product_plain(args, grounding_model, sam2_predictor, args.input_dir, args.output_dir, args.img_format, device=device)
 
