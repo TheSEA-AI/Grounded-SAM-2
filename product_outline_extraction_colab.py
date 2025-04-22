@@ -111,12 +111,165 @@ def parse_args(input_args=None):
 def box_expansion(box, image_width=1024, image_height=1024):
     
     x1, y1, x2, y2 = box[0][0], box[0][1], box[0][2], box[0][3]
-    padding = 20
+    padding = 15
     x1, y1 = max(0, x1 - padding), max(0, y1 - padding)
     x2, y2 = min(image_width, x2 + padding), min(image_height, y2 + padding)
     expanded_box = np.array([[x1, y1, x2, y2]])
 
     return expanded_box
+
+# check_product_plain_hed if it has two parts
+def check_product_plain_hed(intput_dir):
+  image_filename_list = [i for i in os.listdir(intput_dir)]
+  images_path = [os.path.join(intput_dir, file_path)
+                      for file_path in image_filename_list]
+  
+  has_two_parts = False
+  for img_name, img_path in zip(image_filename_list, images_path):
+      if 'product_plain' not in img_name:
+              continue
+      img2 = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+      img2[img2 > 60] = 200
+      img2[img2 <= 60] = 0
+      ret2, thresh2 = cv2.threshold(img2, 127, 255,0)
+      contours2, _ = cv2.findContours(thresh2,cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+      if len(contours2) >2:
+        has_two_parts = True
+  
+  return has_two_parts
+
+# for product plain only
+def product_outline_extraction_by_mask_multiple_product_types_for_product_plain(args, grounding_model, sam2_predictor, input_dir, output_dir, img_format = 'png', image_resolution = 1024, device='cuda'):
+
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    image_filename_list = [i for i in os.listdir(input_dir)]
+    images_path = [os.path.join(input_dir, file_path)
+                        for file_path in image_filename_list]
+
+    hedDetector = HEDdetector()
+    kernel = np.ones((3, 3), np.uint8)
+    image_dim = 1024
+    for img_path, img_name in zip(images_path, image_filename_list):
+        if 'product_plain' not in img_name:
+            continue
+        #####################################
+        #extract mask
+
+        image_source, image = load_image(img_path, image_dim)
+        sam2_predictor.set_image(image_source)
+        product_types = ["beauty product", "cosmetic product", "skincare product", "makeup product", "personal care product"]
+        mask_all = np.full((image_source.shape[1],image_source.shape[1]), True, dtype=bool)
+        for product_type in product_types:
+            boxes, _, _ = predict(
+                model=grounding_model,
+                image=image,
+                caption=product_type,
+                box_threshold=0.35,
+                text_threshold=0.25,
+                device = device
+            )
+
+            # process the box prompt for SAM 2
+            h, w, _ = image_source.shape
+            boxes = boxes * torch.Tensor([w, h, w, h])
+            input_boxes = box_convert(boxes=boxes, in_fmt="cxcywh", out_fmt="xyxy").numpy()
+            input_boxes = box_expansion(input_boxes, image_width=w, image_height=h)
+
+            if boxes.size(0) != 0:
+                masks, _, _ = sam2_predictor.predict(
+                    point_coords=None,
+                    point_labels=None,
+                    box=input_boxes,
+                    multimask_output=False,
+                )
+
+                """
+                Post-process the output of the model to get the masks, scores, and logits for visualization
+                """
+                # convert the shape to (n, H, W)
+                if masks.ndim == 4:
+                    masks = masks.squeeze(1)
+
+                for mask in masks:
+                    im = np.stack((mask,)*3, axis=-1)
+                    im = im.astype(np.uint8)*255
+                    imgray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+                    _, thresh = cv2.threshold(imgray, 127, 255, 0)
+                    contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                    if len(contours) >= 50:
+                        continue
+                    mask_all = mask_all & ~mask.astype(bool)
+            else:
+                raise ValueError(f"the product outline in {img_name} cannot be extracted.")
+
+
+        ##### fill holes inside product #######
+        mask_all = ~mask_all
+        mask_all = mask_all.astype(int)
+        mask_all = ndimage.binary_fill_holes(mask_all).astype(int)
+        mask_all = mask_all.astype(bool)
+        mask_all = ~mask_all
+        ##### fill holes inside product #######
+
+        ##### fill small holes outside product #######
+        ite = 8
+        mask_all = mask_all.astype(int)
+        mask_all = ndimage.binary_closing(mask_all,iterations=ite).astype(int)
+        mask_all = mask_all.astype(bool)
+        ##### fill small holes outside product #######
+
+        ##### flip surrounding pixels due to previous fill small holes outside product #######
+        mask_all[0:ite+2, :] = True
+        mask_all[:, 0:ite+2] = True
+        mask_all[image_dim-ite-1:, :] = True
+        mask_all[:, image_dim-ite-1:] = True
+        ##### flip surrounding pixels due to previous fill small holes outside product #######
+
+        mask_all = np.stack((mask_all,)*3, axis=-1)
+        ################
+
+        mask = ~mask_all
+        mask = mask.astype(np.uint8)
+        mask = cv2.dilate(mask, kernel, iterations=3)
+        mask = np.array(mask, dtype=bool)
+
+        image_raw = Image.open(img_path)#.convert("RGB")
+        if image_raw.mode in ('RGBA', 'LA') or (image_raw.mode == 'P' and 'transparency' in image_raw.info):
+            # Create a white background image of the same size
+            img = Image.new('RGBA', image_raw.size, (255, 255, 255, 255))  # White background
+            # Paste the image on the white background using the alpha channel as a mask
+            image_raw = image_raw.convert('RGBA')
+            img.paste(image_raw, mask=image_raw.split()[3])
+            # Convert the image to RGB mode (to remove the alpha channel)
+            img = img.convert('RGB')
+        else:
+            # If the image doesn't have transparency, no change is needed
+            img = image_raw.convert('RGB')
+
+        #img = img.resize((image_dim, image_dim), Image.LANCZOS)
+        image_array = np.asarray(img)
+
+        #white_array = np.ones_like(image_array) * args.hed_value
+        white_array = np.ones((image_dim, image_dim, 3), dtype=np.uint8) * args.hed_value
+        white_array = white_array * mask_all
+        white_array = white_array * mask
+
+        hed = HWC3(image_array)
+        hed = hedDetector(hed) 
+        hed = cv2.resize(hed, (image_resolution, image_resolution),interpolation=cv2.INTER_LINEAR)
+        hed = hed * mask_all[:,:,0]
+        hed = hed*mask[:,:,0]
+        hed = HWC3(hed)
+        hed = np.where(white_array>0, white_array, hed)
+        hed[hed > 60] = args.hed_value
+        hed[hed <= 60] = 0
+
+        hed = cv2.resize(hed, (image_resolution, image_resolution),interpolation=cv2.INTER_LINEAR)
+        img_masked = Image.fromarray(hed)
+        img_save_path = output_dir + '/' + img_name
+        img_masked.save(img_save_path, img_format)
+
 
 ##the latest version with multiple product types and filling holes etc.
 ##the holes are becasue of SAM noise
@@ -153,8 +306,7 @@ def product_outline_extraction_by_mask_multiple_product_types(args, grounding_mo
             h, w, _ = image_source.shape
             boxes = boxes * torch.Tensor([w, h, w, h])
             input_boxes = box_convert(boxes=boxes, in_fmt="cxcywh", out_fmt="xyxy").numpy()
-            input_boxes = box_expansion(input_boxes, image_width=w, image_height=h)
-
+            
             if boxes.size(0) != 0:
                 masks, _, _ = sam2_predictor.predict(
                     point_coords=None,
@@ -723,8 +875,7 @@ def image_outline_re_extraction_by_mask_multiple_product_types(grounding_model, 
         h, w, _ = image_source.shape
         boxes = boxes * torch.Tensor([w, h, w, h])
         input_boxes = box_convert(boxes=boxes, in_fmt="cxcywh", out_fmt="xyxy").numpy()
-        input_boxes = box_expansion(input_boxes, image_width=w, image_height=h)
-
+        
         if boxes.size(0) != 0:
             masks, _, _ = sam2_predictor.predict(
                 point_coords=None,
@@ -917,8 +1068,10 @@ if __name__ == "__main__":
         #torch.autocast(device_type="cuda", dtype=torch.bfloat16).__enter__()
 
         product_outline_extraction_by_mask_multiple_product_types(args, grounding_model, sam2_predictor, args.input_dir, args.output_dir, args.img_format, device=device)
-        #print(f'similarity={args.similarity_threshold}')
-        #print(f'args.product_images={args.product_images}, len(args.product_images)={len(args.product_images)}')
+        has_two_parts = check_product_plain_hed(args.input_dir)
+        if has_two_parts:
+            product_outline_extraction_by_mask_multiple_product_types_for_product_plain(args, grounding_model, sam2_predictor, args.input_dir, args.output_dir, args.img_format, device=device)
+
         if len(args.product_images) > 0:
             data_similarity_dict_all = filter_data(args, args.output_dir, args.data_hed_dir, args.product_images)
             data_hed_bg_original = filter_hed(args, args.output_dir, data_similarity_dict_all, args.similarity_threshold, args.product_images, candidate_num=args.candidate_num)
