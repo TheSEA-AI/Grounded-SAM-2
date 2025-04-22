@@ -107,6 +107,17 @@ def parse_args(input_args=None):
     
     return args
 
+# box expansion for better SAM
+def box_expansion(box, image_width=1024, image_height=1024):
+    
+    x1, y1, x2, y2 = box[0][0], box[0][1], box[0][2], box[0][3]
+    padding = 20
+    x1, y1 = max(0, x1 - padding), max(0, y1 - padding)
+    x2, y2 = min(image_width, x2 + padding), min(image_height, y2 + padding)
+    expanded_box = np.array([[x1, y1, x2, y2]])
+
+    return expanded_box
+
 ##the latest version with multiple product types and filling holes etc.
 ##the holes are becasue of SAM noise
 def product_outline_extraction_by_mask_multiple_product_types(args, grounding_model, sam2_predictor, input_dir, output_dir, img_format = 'png', image_resolution = 1024, device='cuda'):
@@ -142,6 +153,7 @@ def product_outline_extraction_by_mask_multiple_product_types(args, grounding_mo
             h, w, _ = image_source.shape
             boxes = boxes * torch.Tensor([w, h, w, h])
             input_boxes = box_convert(boxes=boxes, in_fmt="cxcywh", out_fmt="xyxy").numpy()
+            input_boxes = box_expansion(input_boxes, image_width=w, image_height=h)
 
             if boxes.size(0) != 0:
                 masks, _, _ = sam2_predictor.predict(
@@ -711,6 +723,7 @@ def image_outline_re_extraction_by_mask_multiple_product_types(grounding_model, 
         h, w, _ = image_source.shape
         boxes = boxes * torch.Tensor([w, h, w, h])
         input_boxes = box_convert(boxes=boxes, in_fmt="cxcywh", out_fmt="xyxy").numpy()
+        input_boxes = box_expansion(input_boxes, image_width=w, image_height=h)
 
         if boxes.size(0) != 0:
             masks, _, _ = sam2_predictor.predict(
