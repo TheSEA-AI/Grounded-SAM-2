@@ -1040,7 +1040,7 @@ def extract_mask_alpha(file_path):
     
     return alpha
 
-def simple_hed_extraction_for_transparent_product(data_product_transparent_dir):
+def simple_hed_extraction_for_transparent_product(sam2_predictor, data_product_transparent_dir):
     ## create data_hed_transparent_dir
     image_dirs = data_product_transparent_dir.split('/')
     data_product_hed_transparent_dir = '/'+image_dirs[0]
@@ -1075,13 +1075,83 @@ def simple_hed_extraction_for_transparent_product(data_product_transparent_dir):
         hed = HWC3(image_array)
         hed = hedDetector(hed) 
         hed = HWC3(hed)
-        
+
+        product_boundary = product_boundary_extraction(sam2_predictor, img_product_path)
+        hed = np.where(product_boundary >0, product_boundary , hed)
+
         img_masked = Image.fromarray(hed)
         img_masked = img_masked.convert("RGBA")
 
         alpha = extract_mask_alpha(img_product_path)
         img_masked.putalpha(alpha)
         img_masked.save(data_product_hed_transparent_dir+'/'+img_name, 'png')
+
+def product_boundary_extraction(sam2_predictor, img_path , image_dim=1024):
+    kernel = np.ones((3, 3), np.uint8)
+
+    image_source, _ = load_image(img_path, image_dim)
+    sam2_predictor.set_image(image_source)
+
+    h, w, _ = image_source.shape
+    input_boxes = np.array([[0, 0, w, h]])
+
+    mask_all = np.full((image_source.shape[1],image_source.shape[1]), True, dtype=bool)
+
+    masks, _, _ = sam2_predictor.predict(
+        point_coords=None,
+        point_labels=None,
+        box=input_boxes,
+        multimask_output=False,
+    )
+
+    if masks.ndim == 4:
+        masks = masks.squeeze(1)
+
+    for mask in masks:
+        im = np.stack((mask,)*3, axis=-1)
+        im = im.astype(np.uint8)*255
+        imgray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+        _, thresh = cv2.threshold(imgray, 127, 255, 0)
+        contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        if len(contours) >= 50:
+            continue
+        mask_all = mask_all & ~mask.astype(bool)
+
+    mask_all = ~mask_all
+    ##### fill holes inside product #######
+    mask_all = ~mask_all
+    mask_all = mask_all.astype(int)
+    mask_all = ndimage.binary_fill_holes(mask_all).astype(int)
+    mask_all = mask_all.astype(bool)
+    mask_all = ~mask_all
+    ##### fill holes inside product #######
+
+    ##### fill small holes outside product #######
+    ite = 8
+    mask_all = mask_all.astype(int)
+    mask_all = ndimage.binary_closing(mask_all,iterations=ite).astype(int)
+    mask_all = mask_all.astype(bool)
+    ##### fill small holes outside product #######
+
+    ##### flip surrounding pixels due to previous fill small holes outside product #######
+    mask_all[0:ite+2, :] = True
+    mask_all[:, 0:ite+2] = True
+    mask_all[image_dim-ite-1:, :] = True
+    mask_all[:, image_dim-ite-1:] = True
+    ##### flip surrounding pixels due to previous fill small holes outside product #######
+    ################
+    mask_all = np.stack((mask_all,)*3, axis=-1)
+    
+    mask = ~mask_all
+    mask = mask.astype(np.uint8)
+    mask = cv2.dilate(mask, kernel, iterations=3)
+    mask = np.array(mask, dtype=bool)
+
+    white_array = np.ones((image_dim, image_dim, 3), dtype=np.uint8) * 220
+    white_array = white_array * mask_all
+    white_array = white_array * mask
+
+    return white_array
 
 ##### for extracting hed images where the inner lines of produts are removed
 if __name__ == "__main__":
@@ -1130,7 +1200,7 @@ if __name__ == "__main__":
             examine_image_hed(args, grounding_model, sam2_predictor, args.product_images, args.input_dir, args.data_hed_dir, data_similarity_dict_all, args.similarity_threshold, device=device)
             data_hed_transparent_dir = product_hed_transparent_bg(args, args.product_images, data_hed_bg_original)
             data_product_transparent_dir = product_transparent_bg(args, data_hed_transparent_dir)
-            simple_hed_extraction_for_transparent_product(data_product_transparent_dir)
+            simple_hed_extraction_for_transparent_product(sam2_predictor, data_product_transparent_dir)
         print(f'product outline extraction process finished.')
     except:
         traceback.print_exc()
