@@ -1147,10 +1147,14 @@ def product_boundary_extraction(sam2_predictor, img_path , image_dim=1024):
     mask = cv2.dilate(mask, kernel, iterations=3)
     mask = np.array(mask, dtype=bool)
 
-    white_array = np.ones((image_dim, image_dim, 3), dtype=np.uint8) * 220
+    white_array = np.ones((image_dim, image_dim, 3), dtype=np.uint8) * 230
     white_array = white_array * mask_all
     white_array = white_array * mask
-
+    
+    w_array = np.zeros((image_dim+10, image_dim+10, 3), dtype=np.uint8)
+    w_array[5:image_dim+5, 5:image_dim+5 ,:] = white_array 
+    white_array = cv2.resize(w_array, (image_dim, image_dim),interpolation=cv2.INTER_LINEAR)
+    
     return white_array
 
 ##### for extracting hed images where the inner lines of produts are removed
