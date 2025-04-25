@@ -1151,7 +1151,7 @@ def product_boundary_extraction(sam2_predictor, img_path , image_dim=1024):
     mask = cv2.dilate(mask, kernel, iterations=3)
     mask = np.array(mask, dtype=bool)
 
-    white_array = np.ones((image_dim, image_dim, 3), dtype=np.uint8) * 240
+    white_array = np.ones((image_dim, image_dim, 3), dtype=np.uint8) * 250
     white_array = white_array * mask_all
     white_array = white_array * mask
      
