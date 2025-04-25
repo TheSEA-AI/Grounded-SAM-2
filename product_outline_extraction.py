@@ -1085,7 +1085,7 @@ def simple_hed_extraction_for_transparent_product(sam2_predictor, data_product_t
         alpha = extract_mask_alpha(img_product_path)
         alpha = np.array(alpha)
         kernel = np.ones((5, 5), np.uint8)  # adjust size as needed
-        alpha_dilated = cv2.dilate(alpha, kernel, iterations=4)
+        alpha_dilated = cv2.dilate(alpha, kernel, iterations=3)
         alpha_dilated = Image.fromarray(alpha_dilated.astype(np.uint8))
         img_masked.putalpha(alpha_dilated)
         img_masked.save(data_product_hed_transparent_dir+'/'+img_name, 'png')
@@ -1151,7 +1151,7 @@ def product_boundary_extraction(sam2_predictor, img_path , image_dim=1024):
     mask = cv2.dilate(mask, kernel, iterations=3)
     mask = np.array(mask, dtype=bool)
 
-    white_array = np.ones((image_dim, image_dim, 3), dtype=np.uint8) * 230
+    white_array = np.ones((image_dim, image_dim, 3), dtype=np.uint8) * 240
     white_array = white_array * mask_all
     white_array = white_array * mask
      
