@@ -3,9 +3,6 @@
 import os, sys
 import gc
 
-sys.path.append('/home/ec2-user/webui-server/ControlNOLA')
-#sys.path.append(os.path.join(os.getcwd(), "ControlNOLA"))
-
 import argparse
 import copy
 from pathlib import Path
@@ -29,6 +26,7 @@ import matplotlib.pyplot as plt
 from typing import Union
 
 ## annotation
+sys.path.append('/home/yangmi/ControlNet') # pth to annotator
 from annotator.hed import HEDdetector, nms
 from annotator.util import HWC3, resize_image
 
@@ -51,23 +49,42 @@ def parse_args(input_args=None):
                         type=str, 
                         required=True, 
                         help="Path to data instance.")
-    
-    parser.add_argument("--data_hed_dir", 
-                        default=None, 
-                        type=str, 
-                        required=True, 
-                        help="Path to data hed.")
 
     parser.add_argument("--output_dir", 
                         default=None, 
                         type=str, 
                         required=True, 
                         help="Path to data hed background.")
+
+    parser.add_argument("--image_resolution", 
+                        default=1024, 
+                        type=int, 
+                        help="Size of output image.")
     
     parser.add_argument("--img_format", 
                         default='png', 
                         type=str, 
                         help="Path to the image.")
+
+    parser.add_argument("--sam2_checkpoint_pth", 
+                        default=None, 
+                        type=str, 
+                        help="Path to the preloaded SAM2 model checkpoint.")
+
+    parser.add_argument("--sam2_config", 
+                        default=None, 
+                        type=str, 
+                        help="Name of SAM2 model configuration *yaml that matches the SAM2 model. Make sure your config is already under the Hydra search path which can be view via ```pip show SAM-2```")
+
+    parser.add_argument("--gdino_checkpoint_pth", 
+                        default=None, 
+                        type=str, 
+                        help="Path to the preloaded grounding-dino model checkpoint.")
+
+    parser.add_argument("--gdino_config_pth", 
+                        default=None, 
+                        type=str, 
+                        help="Path to the grounding-dimo model configuration *cfg.py.")
     
     parser.add_argument("--gpu_id", 
                         default=0, 
@@ -82,7 +99,7 @@ def parse_args(input_args=None):
                     help="The background image with the product")
 
     parser.add_argument("--similarity_threshold", 
-                        default=3.0,#0.916, 
+                        default=3.0, #0.916, 
                         type=float, 
                         required=False,
                         help="The threshold to remove hed images")
@@ -120,8 +137,8 @@ def product_outline_extraction_by_mask_multiple_product_types(args, grounding_mo
     kernel = np.ones((3, 3), np.uint8)
     image_dim = 1024
     for img_path, img_name in zip(images_path, image_filename_list):
-        if os.path.isfile(os.path.join(output_dir, '.'.join(img_name.split('.')[:-1]) + f"_hed.png")):
-            continue
+        #if os.path.isfile(os.path.join(output_dir, '.'.join(img_name.split('.')[:-1]) + f"_hed.png")):
+        #    continue
         #####################################
         # image load
         image_raw = Image.open(img_path)#.convert("RGB")
@@ -155,7 +172,7 @@ def product_outline_extraction_by_mask_multiple_product_types(args, grounding_mo
                 caption=product_type,
                 box_threshold=0.35,
                 text_threshold=0.25,
-                #device=device,
+                #device='cpu', # otherwise uses GPU:0
             )
 
             # process the box prompt for SAM 2
@@ -291,7 +308,7 @@ if __name__ == "__main__":
     if device != 'cpu':
         # use float16 for the entire notebook
         torch.autocast(device_type="cuda:"+str(args.gpu_id), dtype=torch.float16).__enter__()
-        torch.autocast(device_type="cuda:0", dtype=torch.float16).__enter__()
+        #torch.autocast(device_type="cuda:0", dtype=torch.float16).__enter__() # for gdino
         #torch.autocast(device_type="cuda", dtype=torch.float16).__enter__()
     
 
@@ -302,20 +319,18 @@ if __name__ == "__main__":
         
     try:
         # build SAM2 image predictor
-        sam2_checkpoint = "/home/ec2-user/webui-server/Grounded_Segment_Anything_2/checkpoints/sam2_hiera_base_plus.pt" #sam2_hiera_base_plus.pt, sam2_hiera_large.pt
-        model_cfg = "sam2_hiera_b+.yaml" #sam2_hiera_b+.yaml, sam2_hiera_l.yaml
+        sam2_checkpoint = "./checkpoints/sam2.1_hiera_base_plus.pt" if args.sam2_checkpoint_pth is None else args.sam2_checkpoint_pth
+        model_cfg = "sam2.1_hiera_b+.yaml" if args.sam2_config is None else args.sam2_config
         sam2_model = build_sam2(model_cfg, sam2_checkpoint, device=device)
         sam2_predictor = SAM2ImagePredictor(sam2_model)
 
         # build grounding dino model
         model_id = "IDEA-Research/grounding-dino-base"
         grounding_model = load_model(
-            model_config_path="/home/ec2-user/webui-server/Grounded_Segment_Anything_2/grounding_dino/groundingdino/config/GroundingDINO_SwinB_cfg.py", 
-            model_checkpoint_path="/home/ec2-user/webui-server/Grounded_Segment_Anything_2/gdino_checkpoints/groundingdino_swinb_cogcoor.pth",
+            model_config_path="./grounding_dino/groundingdino/config/GroundingDINO_SwinB_cfg.py" if args.gdino_config_pth is None else args.gdino_config_pth, 
+            model_checkpoint_path="./gdino_checkpoints/groundingdino_swinb_cogcoor.pth" if args.gdino_checkpoint_pth is None else args.gdino_checkpoint_pth,
             device=device
         )
-        # FIXME: figure how does this influence the G-DINO model
-        #torch.autocast(device_type="cuda", dtype=torch.bfloat16).__enter__()
         
         for brand in os.listdir(args.input_dir):
             if 'Element' in brand or 'Finished visuals' in brand or 'test' in brand or 'TEST' in brand:
@@ -326,11 +341,17 @@ if __name__ == "__main__":
                 if not os.path.isdir(os.path.join(args.input_dir, brand, product, 'Editing Assets')) or not os.path.isdir(os.path.join(args.input_dir, brand, product, 'Generated Image')):
                     continue
                 # 'data_hed/product_plain.png'
-                test_input_dir = os.path.join(args.input_dir, brand, product, 'data_hed')
-                test_output_dir = os.path.join(args.output_dir, brand, product, 'data_hed')
-                if 'test' in test_input_dir or not os.path.isdir(test_input_dir):
-                    continue
-                product_outline_extraction_by_mask_multiple_product_types(args, grounding_model, sam2_predictor, test_input_dir, test_output_dir, args.img_format, device=device)
+                #test_input_dir = os.path.join(args.input_dir, brand, product, 'data_hed')
+                #test_output_dir = os.path.join(args.output_dir, brand, product, 'data_hed')
+                #product_outline_extraction_by_mask_multiple_product_types(...)
+                
+                for scene in os.listdir(os.path.join(args.input_dir, brand, product, 'Generated Image')):
+                    test_input_dir = os.path.join(args.input_dir, brand, product, 'Generated Image', scene)
+                    test_output_dir = os.path.join(args.output_dir, brand, product, scene)
+                    if 'test' in test_input_dir or not os.path.isdir(test_input_dir):
+                        continue
+                    print("input:", test_input_dir, "output", test_output_dir)
+                    product_outline_extraction_by_mask_multiple_product_types(args, grounding_model, sam2_predictor, test_input_dir, test_output_dir, args.img_format, device=device)
         
         
         print(f'product outline extraction process finished.')
