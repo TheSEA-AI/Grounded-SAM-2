@@ -196,7 +196,7 @@ def product_outline_extraction_by_mask_multiple_product_types_for_product_plain(
                     imgray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
                     _, thresh = cv2.threshold(imgray, 127, 255, 0)
                     contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-                    if len(contours) >= 50:
+                    if len(contours) >= 100:
                         continue
                     mask_all = mask_all & ~mask.astype(bool)
             else:
