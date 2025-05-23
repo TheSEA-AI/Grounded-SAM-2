@@ -1085,7 +1085,7 @@ def simple_hed_extraction_for_transparent_product(sam2_predictor, data_product_t
         alpha = extract_mask_alpha(img_product_path)
         alpha = np.array(alpha)
         kernel = np.ones((5, 5), np.uint8)  # adjust size as needed
-        alpha_dilated = cv2.dilate(alpha, kernel, iterations=3)
+        alpha_dilated = cv2.dilate(alpha, kernel, iterations=4)
         alpha_dilated = Image.fromarray(alpha_dilated.astype(np.uint8))
         img_masked.putalpha(alpha_dilated)
         img_masked.save(data_product_hed_transparent_dir+'/'+img_name, 'png')
