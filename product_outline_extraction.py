@@ -132,7 +132,7 @@ def check_product_plain_hed(intput_dir):
       img2[img2 <= 60] = 0
       ret2, thresh2 = cv2.threshold(img2, 127, 255,0)
       contours2, _ = cv2.findContours(thresh2,cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-      if len(contours2) >2:
+      if len(contours2) >2 or len(contours2)==0:
         has_two_parts = True
   
   return has_two_parts
