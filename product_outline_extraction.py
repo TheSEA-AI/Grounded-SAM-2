@@ -833,7 +833,7 @@ def examine_image_hed(args, grounding_model, sam2_predictor, product_images, dat
           #print(f'remove={remove}')
           if False not in remove:
             #os.remove(img_path)
-            image_outline_re_extraction_by_mask_multiple_product_types(grounding_model, sam2_predictor, data_dir, img_path, img_name, device=device)
+            image_outline_re_extraction_by_mask_multiple_product_types(hedDetector, grounding_model, sam2_predictor, data_dir, img_path, img_name, device=device)
 
 
 ##re-extract an image hed when hed is over-extracted.
