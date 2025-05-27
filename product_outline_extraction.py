@@ -769,7 +769,7 @@ def product_hed_transparent_bg(args, product_images, data_hed_background_dir):
     return data_hed_transparent_dir
 
 ## check whether hed is over-extracted
-def examine_image_hed(args, grounding_model, sam2_predictor, product_images, data_dir, data_hed_dir, data_similarity_dict, similarity_threshold = 0.916, device='cuda'):
+def examine_image_hed(args, hedDetector, grounding_model, sam2_predictor, product_images, data_dir, data_hed_dir, data_similarity_dict, similarity_threshold = 0.916, device='cuda'):
   large_value = 100
 
   image_filename_list = [i for i in os.listdir(data_hed_dir)]
