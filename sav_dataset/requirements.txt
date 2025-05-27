@@ -5,3 +5,4 @@ tqdm
 pillow
 numpy
 matplotlib
+controlnet-aux

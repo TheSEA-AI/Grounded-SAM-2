@@ -29,8 +29,7 @@ import matplotlib.pyplot as plt
 from typing import Union
 
 ## annotation
-from annotator.hed import HEDdetector, nms
-from annotator.util import HWC3, resize_image
+from controlnet_aux import HEDdetector
 
 # diffusers
 import PIL
@@ -98,6 +97,12 @@ def parse_args(input_args=None):
                         type=int, 
                         required=False,
                         help="The number of candidates for data hed background images")
+    
+    parser.add_argument("--output_img_resolution",
+                        default=1024, 
+                        type=int, 
+                        required=False,
+                        help="The resolution of the hed image")
 
     if input_args is not None:
         args = parser.parse_args(input_args)
@@ -138,7 +143,7 @@ def check_product_plain_hed(intput_dir):
   return has_two_parts
 
 # for product plain only
-def product_outline_extraction_by_mask_multiple_product_types_for_product_plain(args, grounding_model, sam2_predictor, input_dir, output_dir, img_format = 'png', image_resolution = 1024, device='cuda'):
+def product_outline_extraction_by_mask_multiple_product_types_for_product_plain(args, hedDetector, grounding_model, sam2_predictor, input_dir, output_dir, img_format = 'png', image_resolution = 1024, device='cuda'):
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
@@ -146,9 +151,8 @@ def product_outline_extraction_by_mask_multiple_product_types_for_product_plain(
     images_path = [os.path.join(input_dir, file_path)
                         for file_path in image_filename_list]
 
-    hedDetector = HEDdetector()
     kernel = np.ones((3, 3), np.uint8)
-    image_dim = 1024
+    image_dim = image_resolution
     for img_path, img_name in zip(images_path, image_filename_list):
         if 'product_plain' not in img_name:
             continue
@@ -254,24 +258,20 @@ def product_outline_extraction_by_mask_multiple_product_types_for_product_plain(
         white_array = white_array * mask_all
         white_array = white_array * mask
 
-        hed = HWC3(image_array)
-        hed = hedDetector(hed) 
-        hed = cv2.resize(hed, (image_resolution, image_resolution),interpolation=cv2.INTER_LINEAR)
-        hed = hed * mask_all[:,:,0]
-        hed = hed*mask[:,:,0]
-        hed = HWC3(hed)
+        hed = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution) 
+        hed = hed * mask_all
+        hed = hed*mask
         hed = np.where(white_array>0, white_array, hed)
         hed[hed > 60] = args.hed_value
         hed[hed <= 60] = 0
 
-        hed = cv2.resize(hed, (image_resolution, image_resolution),interpolation=cv2.INTER_LINEAR)
         img_masked = Image.fromarray(hed)
         img_save_path = output_dir + '/' + img_name
         img_masked.save(img_save_path, img_format)
 
 ##the latest version with multiple product types and filling holes etc.
 ##the holes are becasue of SAM noise
-def product_outline_extraction_by_mask_multiple_product_types(args, grounding_model, sam2_predictor, input_dir, output_dir, img_format = 'png', image_resolution = 1024, device='cuda'):
+def product_outline_extraction_by_mask_multiple_product_types(args, hedDetector, grounding_model, sam2_predictor, input_dir, output_dir, img_format = 'png', image_resolution = 1024, device='cuda'):
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
@@ -279,9 +279,8 @@ def product_outline_extraction_by_mask_multiple_product_types(args, grounding_mo
     images_path = [os.path.join(input_dir, file_path)
                         for file_path in image_filename_list]
 
-    hedDetector = HEDdetector()
     kernel = np.ones((3, 3), np.uint8)
-    image_dim = 1024
+    image_dim = image_resolution
     for img_path, img_name in zip(images_path, image_filename_list):
         #####################################
         #extract mask
@@ -376,25 +375,17 @@ def product_outline_extraction_by_mask_multiple_product_types(args, grounding_mo
             # If the image doesn't have transparency, no change is needed
             img = image_raw.convert('RGB')
 
-        #img = img.resize((image_dim, image_dim), Image.LANCZOS)
-        image_array = np.asarray(img)
-
-        #white_array = np.ones_like(image_array) * args.hed_value
         white_array = np.ones((image_dim, image_dim, 3), dtype=np.uint8) * args.hed_value
         white_array = white_array * mask_all
         white_array = white_array * mask
 
-        hed = HWC3(image_array)
-        hed = hedDetector(hed) 
-        hed = cv2.resize(hed, (image_resolution, image_resolution),interpolation=cv2.INTER_LINEAR)
-        hed = hed * mask_all[:,:,0]
-        hed = hed*mask[:,:,0]
-        hed = HWC3(hed)
+        hed = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution) 
+        hed = hed * mask_all
+        hed = hed*mask
         hed = np.where(white_array>0, white_array, hed)
         hed[hed > 60] = args.hed_value
         hed[hed <= 60] = 0
 
-        hed = cv2.resize(hed, (image_resolution, image_resolution),interpolation=cv2.INTER_LINEAR)
         img_masked = Image.fromarray(hed)
         img_save_path = output_dir + '/' + img_name
         img_masked.save(img_save_path, img_format)
@@ -846,13 +837,12 @@ def examine_image_hed(args, grounding_model, sam2_predictor, product_images, dat
 
 
 ##re-extract an image hed when hed is over-extracted.
-def image_outline_re_extraction_by_mask_multiple_product_types(grounding_model, sam2_predictor, data_dir, output_path, img_name, img_format = 'png', image_resolution = 1024, device='cuda'):
+def image_outline_re_extraction_by_mask_multiple_product_types(hedDetector, grounding_model, sam2_predictor, data_dir, output_path, img_name, img_format = 'png', image_resolution = 1024, device='cuda'):
 
     img_path = data_dir + '/' + img_name
 
-    hedDetector = HEDdetector()
     kernel = np.ones((3, 3), np.uint8)
-    image_dim = 1024
+    image_dim = image_resolution
     
     #####################################
     #extract mask
@@ -946,19 +936,13 @@ def image_outline_re_extraction_by_mask_multiple_product_types(grounding_model, 
         # If the image doesn't have transparency, no change is needed
         img = image_raw.convert('RGB')
             
-    #img = img.resize((image_dim, image_dim), Image.LANCZOS)
-    image_array = np.asarray(img)
-
     #white_array = np.ones_like(image_array) * args.hed_value
     white_array = np.ones((image_dim, image_dim, 3), dtype=np.uint8) * args.hed_value
     white_array = white_array * mask_all
     white_array = white_array * mask
 
-    hed = HWC3(image_array)
-    hed = hedDetector(hed) 
-    hed = cv2.resize(hed, (image_resolution, image_resolution),interpolation=cv2.INTER_LINEAR)
-    hed = hed * mask_all[:,:,0]
-    hed = HWC3(hed)
+    hed = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution) 
+    hed = hed * mask_all
     hed = np.where(white_array>0, white_array, hed)
 
     for individual_mask in individual_masks:
@@ -996,7 +980,6 @@ def image_outline_re_extraction_by_mask_multiple_product_types(grounding_model, 
       tmp_white_array = tmp_white_array * tmp_mask
       hed = np.where(tmp_white_array>0, tmp_white_array, hed)
 
-    hed = cv2.resize(hed, (image_resolution, image_resolution),interpolation=cv2.INTER_LINEAR)
     img_masked = Image.fromarray(hed)
     img_masked.save(output_path, img_format)
 
@@ -1040,7 +1023,7 @@ def extract_mask_alpha(file_path):
     
     return alpha
 
-def simple_hed_extraction_for_transparent_product(sam2_predictor, data_product_transparent_dir):
+def simple_hed_extraction_for_transparent_product(hedDetector, sam2_predictor, data_product_transparent_dir, image_resolution=1024):
     ## create data_hed_transparent_dir
     image_dirs = data_product_transparent_dir.split('/')
     data_product_hed_transparent_dir = '/'+image_dirs[0]
@@ -1067,14 +1050,8 @@ def simple_hed_extraction_for_transparent_product(sam2_predictor, data_product_t
             # If the image doesn't have transparency, no change is needed
             img = image_raw.convert('RGB')
         
-        #img = img.resize((image_dim, image_dim), Image.LANCZOS)
-        image_array = np.asarray(img)
-
-        hedDetector = HEDdetector()
-
-        hed = HWC3(image_array)
-        hed = hedDetector(hed) 
-        hed = HWC3(hed)
+        hed = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution) 
+        hed = np.asarray(hed)
 
         product_boundary = product_boundary_extraction(sam2_predictor, img_product_path)
         hed = np.where(product_boundary >0, product_boundary , hed)
@@ -1177,6 +1154,9 @@ if __name__ == "__main__":
             torch.backends.cudnn.allow_tf32 = True
         
     try:
+        # build hed detector
+        hedDetector = HEDdetector.from_pretrained("lllyasviel/Annotators")
+
         # build SAM2 image predictor
         sam2_checkpoint = "/home/ec2-user/webui-server/Grounded_Segment_Anything_2/checkpoints/sam2_hiera_base_plus.pt"#sam2_hiera_base_plus.pt, sam2_hiera_large.pt
         model_cfg = "sam2_hiera_b+.yaml"#sam2_hiera_b+.yaml, sam2_hiera_l.yaml
@@ -1193,18 +1173,18 @@ if __name__ == "__main__":
         # FIXME: figure how does this influence the G-DINO model
         #torch.autocast(device_type="cuda", dtype=torch.bfloat16).__enter__()
 
-        product_outline_extraction_by_mask_multiple_product_types(args, grounding_model, sam2_predictor, args.input_dir, args.output_dir, args.img_format, device=device)
+        product_outline_extraction_by_mask_multiple_product_types(args, hedDetector, grounding_model, sam2_predictor, args.input_dir, args.output_dir, args.img_format, image_resolution=args.output_img_resolution, device=device)
         has_two_parts = check_product_plain_hed(args.output_dir)
         if has_two_parts:
-            product_outline_extraction_by_mask_multiple_product_types_for_product_plain(args, grounding_model, sam2_predictor, args.input_dir, args.output_dir, args.img_format, device=device)
+            product_outline_extraction_by_mask_multiple_product_types_for_product_plain(args, hedDetector, grounding_model, sam2_predictor, args.input_dir, args.output_dir, args.img_format, image_resolution=args.output_img_resolution, device=device)
 
         if args.product_images is not None:
             data_similarity_dict_all = filter_data(args, args.output_dir, args.data_hed_dir, args.product_images)
-            data_hed_bg_original = filter_hed(args, args.output_dir, data_similarity_dict_all, args.similarity_threshold, args.product_images, candidate_num=args.candidate_num)
-            examine_image_hed(args, grounding_model, sam2_predictor, args.product_images, args.input_dir, args.data_hed_dir, data_similarity_dict_all, args.similarity_threshold, device=device)
+            data_hed_bg_original = filter_hed(args, args.output_dir, data_similarity_dict_all, args.similarity_threshold, args.product_images, candidate_num=args.candidate_num, image_dim=args.output_img_resolution)
+            examine_image_hed(args, hedDetector, grounding_model, sam2_predictor, args.product_images, args.input_dir, args.data_hed_dir, data_similarity_dict_all, args.similarity_threshold, device=device)
             data_hed_transparent_dir = product_hed_transparent_bg(args, args.product_images, data_hed_bg_original)
             data_product_transparent_dir = product_transparent_bg(args, data_hed_transparent_dir)
-            simple_hed_extraction_for_transparent_product(sam2_predictor, data_product_transparent_dir)
+            simple_hed_extraction_for_transparent_product(hedDetector, sam2_predictor, data_product_transparent_dir, image_resolution=args.output_img_resolution)
         print(f'product outline extraction process finished.')
     except:
         traceback.print_exc()
