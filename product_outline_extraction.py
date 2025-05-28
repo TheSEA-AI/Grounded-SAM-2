@@ -1027,10 +1027,14 @@ def simple_hed_extraction_for_transparent_product(hedDetector, sam2_predictor, d
     ## create data_hed_transparent_dir
     image_dirs = data_product_transparent_dir.split('/')
     data_product_hed_transparent_dir = '/'+image_dirs[0]
+    data_product_hed_transparent_dir_enhanced = '/'+image_dirs[0]
     for i in range(1, len(image_dirs)-1):
         data_product_hed_transparent_dir += image_dirs[i] + '/'
+        data_product_hed_transparent_dir_enhanced += image_dirs[i] + '/'
     data_product_hed_transparent_dir += 'data_product_hed_transparent'
+    data_product_hed_transparent_dir_enhanced += 'data_product_hed_transparent_enhanced'
     Path(data_product_hed_transparent_dir).mkdir(parents=True, exist_ok=True)
+    Path(data_product_hed_transparent_dir_enhanced).mkdir(parents=True, exist_ok=True)
 
     image_product_filename_list = [i for i in os.listdir(data_product_transparent_dir)]
     images_product_path = [os.path.join(data_product_transparent_dir, file_path)
@@ -1051,13 +1055,18 @@ def simple_hed_extraction_for_transparent_product(hedDetector, sam2_predictor, d
             img = image_raw.convert('RGB')
         
         hed = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution) 
+        hed_enhanced = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution, enhance=True) 
         hed = np.asarray(hed)
+        hed_enhanced = np.asarray(hed_enhanced)
 
         product_boundary = product_boundary_extraction(sam2_predictor, img_product_path)
         hed = np.where(product_boundary >0, product_boundary , hed)
+        hed_enhanced = np.where(product_boundary >0, product_boundary , hed_enhanced)
 
         img_masked = Image.fromarray(hed)
+        img_masked_enhanced = Image.fromarray(hed_enhanced)
         img_masked = img_masked.convert("RGBA")
+        img_masked_enhanced = img_masked_enhanced.convert("RGBA")
 
         alpha = extract_mask_alpha(img_product_path)
         alpha = np.array(alpha)
@@ -1065,7 +1074,9 @@ def simple_hed_extraction_for_transparent_product(hedDetector, sam2_predictor, d
         alpha_dilated = cv2.dilate(alpha, kernel, iterations=4)
         alpha_dilated = Image.fromarray(alpha_dilated.astype(np.uint8))
         img_masked.putalpha(alpha_dilated)
+        img_masked_enhanced.putalpha(alpha_dilated)
         img_masked.save(data_product_hed_transparent_dir+'/'+img_name, 'png')
+        img_masked_enhanced.save(data_product_hed_transparent_dir_enhanced+'/'+img_name, 'png')
 
 def product_boundary_extraction(sam2_predictor, img_path , image_dim=1024):
     kernel = np.ones((3, 3), np.uint8)
