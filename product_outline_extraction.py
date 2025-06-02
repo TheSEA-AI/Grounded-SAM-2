@@ -1012,7 +1012,11 @@ def product_transparent_bg(args, data_hed_transparent_dir):
                 product_image = product_image.resize(hed_image.size, Image.LANCZOS)
                 if hed_image.mode == 'RGBA':
                     _, _, _, alpha = hed_image.split()
-                    product_image.putalpha(alpha)
+                    alpha = np.array(alpha)
+                    kernel = np.ones((3, 3), np.uint8)  # adjust size as needed
+                    alpha_eroded = cv2.erode(alpha, kernel, iterations=3)
+                    alpha_eroded = Image.fromarray(alpha_eroded.astype(np.uint8))
+                    product_image.putalpha(alpha_eroded)
                     product_image.save(data_product_transparent_dir+'/'+img_hed_name, 'png')
 
     return data_product_transparent_dir
