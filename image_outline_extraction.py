@@ -147,69 +147,71 @@ def image_outline_extraction_by_mask_multiple_product_types(args, grounding_mode
 
                     mask_all = mask_all & ~mask.astype(bool)
             else:
-                raise ValueError(f"the image outline in {img_name} cannot be extracted.")
+                continue
+                #raise ValueError(f"the image outline in {img_name} cannot be extracted.")
 
-        ##### fill holes inside product #######
-        mask_all = ~mask_all
-        mask_all = mask_all.astype(int)
-        mask_all = ndimage.binary_fill_holes(mask_all).astype(int)
-        mask_all = mask_all.astype(bool)
-        mask_all = ~mask_all
-        ##### fill holes inside product #######
+        if False in mask_all:
+            ##### fill holes inside product #######
+            mask_all = ~mask_all
+            mask_all = mask_all.astype(int)
+            mask_all = ndimage.binary_fill_holes(mask_all).astype(int)
+            mask_all = mask_all.astype(bool)
+            mask_all = ~mask_all
+            ##### fill holes inside product #######
 
-        ##### fill small holes outside product #######
-        ite = 8
-        mask_all = mask_all.astype(int)
-        mask_all = ndimage.binary_closing(mask_all,iterations=ite).astype(int)
-        mask_all = mask_all.astype(bool)
-        ##### fill small holes outside product #######
+            ##### fill small holes outside product #######
+            ite = 8
+            mask_all = mask_all.astype(int)
+            mask_all = ndimage.binary_closing(mask_all,iterations=ite).astype(int)
+            mask_all = mask_all.astype(bool)
+            ##### fill small holes outside product #######
 
-        ##### flip surrounding pixels due to previous fill small holes outside product #######
-        mask_all[0:ite+2, :] = True
-        mask_all[:, 0:ite+2] = True
-        mask_all[image_dim-ite-1:, :] = True
-        mask_all[:, image_dim-ite-1:] = True
-        ##### flip surrounding pixels due to previous fill small holes outside product #######
+            ##### flip surrounding pixels due to previous fill small holes outside product #######
+            mask_all[0:ite+2, :] = True
+            mask_all[:, 0:ite+2] = True
+            mask_all[image_dim-ite-1:, :] = True
+            mask_all[:, image_dim-ite-1:] = True
+            ##### flip surrounding pixels due to previous fill small holes outside product #######
 
-        mask_all = np.stack((mask_all,)*3, axis=-1)
-        ################
-        mask = ~mask_all
-        mask = mask.astype(np.uint8)
-        mask = cv2.dilate(mask, kernel, iterations=3)
-        mask = np.array(mask, dtype=bool)
+            mask_all = np.stack((mask_all,)*3, axis=-1)
+            ################
+            mask = ~mask_all
+            mask = mask.astype(np.uint8)
+            mask = cv2.dilate(mask, kernel, iterations=3)
+            mask = np.array(mask, dtype=bool)
 
-        image_raw = Image.open(img_path)#.convert("RGB")
-        if image_raw.mode in ('RGBA', 'LA') or (image_raw.mode == 'P' and 'transparency' in image_raw.info):
-            # Create a white background image of the same size
-            img = Image.new('RGBA', image_raw.size, (255, 255, 255, 255))  # White background
-            # Paste the image on the white background using the alpha channel as a mask
-            image_raw = image_raw.convert('RGBA')
-            img.paste(image_raw, mask=image_raw.split()[3])
-            # Convert the image to RGB mode (to remove the alpha channel)
-            img = img.convert('RGB')
-        else:
-            # If the image doesn't have transparency, no change is needed
-            img = image_raw.convert('RGB')
-            
-        #img = img.resize((image_dim, image_dim), Image.LANCZOS)
-        image_array = np.asarray(img)
+            image_raw = Image.open(img_path)#.convert("RGB")
+            if image_raw.mode in ('RGBA', 'LA') or (image_raw.mode == 'P' and 'transparency' in image_raw.info):
+                # Create a white background image of the same size
+                img = Image.new('RGBA', image_raw.size, (255, 255, 255, 255))  # White background
+                # Paste the image on the white background using the alpha channel as a mask
+                image_raw = image_raw.convert('RGBA')
+                img.paste(image_raw, mask=image_raw.split()[3])
+                # Convert the image to RGB mode (to remove the alpha channel)
+                img = img.convert('RGB')
+            else:
+                # If the image doesn't have transparency, no change is needed
+                img = image_raw.convert('RGB')
+                
+            #img = img.resize((image_dim, image_dim), Image.LANCZOS)
+            image_array = np.asarray(img)
 
-        #white_array = np.ones_like(image_array) * args.hed_value
-        white_array = np.ones((image_dim, image_dim, 3), dtype=np.uint8) * args.hed_value
-        white_array = white_array * mask_all
-        white_array = white_array * mask
+            #white_array = np.ones_like(image_array) * args.hed_value
+            white_array = np.ones((image_dim, image_dim, 3), dtype=np.uint8) * args.hed_value
+            white_array = white_array * mask_all
+            white_array = white_array * mask
 
-        hed = HWC3(image_array)
-        hed = hedDetector(hed) 
-        hed = cv2.resize(hed, (image_resolution, image_resolution),interpolation=cv2.INTER_LINEAR)
-        hed = hed * mask_all[:,:,0]
-        hed = HWC3(hed)
-        hed = np.where(white_array>0, white_array, hed)
+            hed = HWC3(image_array)
+            hed = hedDetector(hed) 
+            hed = cv2.resize(hed, (image_resolution, image_resolution),interpolation=cv2.INTER_LINEAR)
+            hed = hed * mask_all[:,:,0]
+            hed = HWC3(hed)
+            hed = np.where(white_array>0, white_array, hed)
 
-        hed = cv2.resize(hed, (image_resolution, image_resolution),interpolation=cv2.INTER_LINEAR)
-        img_masked = Image.fromarray(hed)
-        img_save_path = output_dir + '/' + img_name
-        img_masked.save(img_save_path, img_format)
+            hed = cv2.resize(hed, (image_resolution, image_resolution),interpolation=cv2.INTER_LINEAR)
+            img_masked = Image.fromarray(hed)
+            img_save_path = output_dir + '/' + img_name
+            img_masked.save(img_save_path, img_format)
 
 ##### for extracting hed images where the inner lines of produts are removed
 if __name__ == "__main__":

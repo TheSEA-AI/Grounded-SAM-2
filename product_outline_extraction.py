@@ -267,7 +267,7 @@ def product_outline_extraction_by_mask_multiple_product_types_for_product_plain(
 
         img_masked = Image.fromarray(hed)
         img_save_path = output_dir + '/' + img_name
-        img_masked.save(img_save_path, img_format)
+        img_masked.save(img_save_path, 'png')
 
 ##the latest version with multiple product types and filling holes etc.
 ##the holes are becasue of SAM noise
@@ -329,66 +329,67 @@ def product_outline_extraction_by_mask_multiple_product_types(args, hedDetector,
                         continue
                     mask_all = mask_all & ~mask.astype(bool)
             else:
-                raise ValueError(f"the product outline in {img_name} cannot be extracted.")
+                continue
+                #raise ValueError(f"the product outline in {img_name} cannot be extracted.")
 
+        if False in mask_all:
+            ##### fill holes inside product #######
+            mask_all = ~mask_all
+            mask_all = mask_all.astype(int)
+            mask_all = ndimage.binary_fill_holes(mask_all).astype(int)
+            mask_all = mask_all.astype(bool)
+            mask_all = ~mask_all
+            ##### fill holes inside product #######
 
-        ##### fill holes inside product #######
-        mask_all = ~mask_all
-        mask_all = mask_all.astype(int)
-        mask_all = ndimage.binary_fill_holes(mask_all).astype(int)
-        mask_all = mask_all.astype(bool)
-        mask_all = ~mask_all
-        ##### fill holes inside product #######
+            ##### fill small holes outside product #######
+            ite = 8
+            mask_all = mask_all.astype(int)
+            mask_all = ndimage.binary_closing(mask_all,iterations=ite).astype(int)
+            mask_all = mask_all.astype(bool)
+            ##### fill small holes outside product #######
 
-        ##### fill small holes outside product #######
-        ite = 8
-        mask_all = mask_all.astype(int)
-        mask_all = ndimage.binary_closing(mask_all,iterations=ite).astype(int)
-        mask_all = mask_all.astype(bool)
-        ##### fill small holes outside product #######
+            ##### flip surrounding pixels due to previous fill small holes outside product #######
+            mask_all[0:ite+2, :] = True
+            mask_all[:, 0:ite+2] = True
+            mask_all[image_dim-ite-1:, :] = True
+            mask_all[:, image_dim-ite-1:] = True
+            ##### flip surrounding pixels due to previous fill small holes outside product #######
 
-        ##### flip surrounding pixels due to previous fill small holes outside product #######
-        mask_all[0:ite+2, :] = True
-        mask_all[:, 0:ite+2] = True
-        mask_all[image_dim-ite-1:, :] = True
-        mask_all[:, image_dim-ite-1:] = True
-        ##### flip surrounding pixels due to previous fill small holes outside product #######
+            mask_all = np.stack((mask_all,)*3, axis=-1)
+            ################
 
-        mask_all = np.stack((mask_all,)*3, axis=-1)
-        ################
+            mask = ~mask_all
+            mask = mask.astype(np.uint8)
+            mask = cv2.dilate(mask, kernel, iterations=3)
+            mask = np.array(mask, dtype=bool)
 
-        mask = ~mask_all
-        mask = mask.astype(np.uint8)
-        mask = cv2.dilate(mask, kernel, iterations=3)
-        mask = np.array(mask, dtype=bool)
+            image_raw = Image.open(img_path)#.convert("RGB")
+            if image_raw.mode in ('RGBA', 'LA') or (image_raw.mode == 'P' and 'transparency' in image_raw.info):
+                # Create a white background image of the same size
+                img = Image.new('RGBA', image_raw.size, (255, 255, 255, 255))  # White background
+                # Paste the image on the white background using the alpha channel as a mask
+                image_raw = image_raw.convert('RGBA')
+                img.paste(image_raw, mask=image_raw.split()[3])
+                # Convert the image to RGB mode (to remove the alpha channel)
+                img = img.convert('RGB')
+            else:
+                # If the image doesn't have transparency, no change is needed
+                img = image_raw.convert('RGB')
 
-        image_raw = Image.open(img_path)#.convert("RGB")
-        if image_raw.mode in ('RGBA', 'LA') or (image_raw.mode == 'P' and 'transparency' in image_raw.info):
-            # Create a white background image of the same size
-            img = Image.new('RGBA', image_raw.size, (255, 255, 255, 255))  # White background
-            # Paste the image on the white background using the alpha channel as a mask
-            image_raw = image_raw.convert('RGBA')
-            img.paste(image_raw, mask=image_raw.split()[3])
-            # Convert the image to RGB mode (to remove the alpha channel)
-            img = img.convert('RGB')
-        else:
-            # If the image doesn't have transparency, no change is needed
-            img = image_raw.convert('RGB')
+            white_array = np.ones((image_dim, image_dim, 3), dtype=np.uint8) * args.hed_value
+            white_array = white_array * mask_all
+            white_array = white_array * mask
 
-        white_array = np.ones((image_dim, image_dim, 3), dtype=np.uint8) * args.hed_value
-        white_array = white_array * mask_all
-        white_array = white_array * mask
+            hed = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution) 
+            hed = hed * mask_all
+            hed = hed*mask
+            hed = np.where(white_array>0, white_array, hed)
+            hed[hed > 60] = args.hed_value
+            hed[hed <= 60] = 0
 
-        hed = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution) 
-        hed = hed * mask_all
-        hed = hed*mask
-        hed = np.where(white_array>0, white_array, hed)
-        hed[hed > 60] = args.hed_value
-        hed[hed <= 60] = 0
-
-        img_masked = Image.fromarray(hed)
-        img_save_path = output_dir + '/' + img_name
-        img_masked.save(img_save_path, img_format)
+            img_masked = Image.fromarray(hed)
+            img_save_path = output_dir + '/' + img_name
+            img_masked.save(img_save_path, 'png')
 
 ## function for data hed background filtering
 def filter_hed(args, data_hed_background_dir, data_similarity_dict, similarity_threshold, product_images, candidate_num = 2, img_format = 'png', image_dim=1024):
@@ -558,7 +559,7 @@ def filter_hed(args, data_hed_background_dir, data_similarity_dict, similarity_t
                           tmp_white_array = tmp_white_array * mask
                           tmp_white_array = tmp_white_array * tmp_mask
                           tmp_image = Image.fromarray(tmp_white_array)
-                          tmp_image.save(img_path, img_format)
+                          tmp_image.save(img_path, 'png')
 
     ## remove more than 2 hed background images
     if len(candidates.keys()) > candidate_num:
@@ -981,7 +982,7 @@ def image_outline_re_extraction_by_mask_multiple_product_types(hedDetector, grou
       hed = np.where(tmp_white_array>0, tmp_white_array, hed)
 
     img_masked = Image.fromarray(hed)
-    img_masked.save(output_path, img_format)
+    img_masked.save(output_path, 'png')
 
 
 # extract product with transparent background
@@ -1004,20 +1005,21 @@ def product_transparent_bg(args, data_hed_transparent_dir):
                         for file_path in image_hed_filename_list]
     
     for img_name, img_path in zip(image_filename_list, images_path):
-        product_image = Image.open(img_path)
-        product_image = product_image.convert("RGBA")
-        for img_hed_name, img_hed_path in zip(image_hed_filename_list, images_hed_path):
-            if img_name in img_hed_name:
-                hed_image = Image.open(img_hed_path)
-                product_image = product_image.resize(hed_image.size, Image.LANCZOS)
-                if hed_image.mode == 'RGBA':
-                    _, _, _, alpha = hed_image.split()
-                    alpha = np.array(alpha)
-                    kernel = np.ones((3, 3), np.uint8)  # adjust size as needed
-                    alpha_eroded = cv2.erode(alpha, kernel, iterations=3)
-                    alpha_eroded = Image.fromarray(alpha_eroded.astype(np.uint8))
-                    product_image.putalpha(alpha_eroded)
-                    product_image.save(data_product_transparent_dir+'/'+img_hed_name, 'png')
+        if os.path.exists(img_path):
+            product_image = Image.open(img_path)
+            product_image = product_image.convert("RGBA")
+            for img_hed_name, img_hed_path in zip(image_hed_filename_list, images_hed_path):
+                if img_name in img_hed_name:
+                    hed_image = Image.open(img_hed_path)
+                    product_image = product_image.resize(hed_image.size, Image.LANCZOS)
+                    if hed_image.mode == 'RGBA':
+                        _, _, _, alpha = hed_image.split()
+                        alpha = np.array(alpha)
+                        kernel = np.ones((3, 3), np.uint8)  # adjust size as needed
+                        alpha_eroded = cv2.erode(alpha, kernel, iterations=3)
+                        alpha_eroded = Image.fromarray(alpha_eroded.astype(np.uint8))
+                        product_image.putalpha(alpha_eroded)
+                        product_image.save(data_product_transparent_dir+'/'+img_hed_name, 'png')
 
     return data_product_transparent_dir
 
