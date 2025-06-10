@@ -1060,7 +1060,7 @@ def simple_hed_extraction_for_transparent_product(hedDetector, sam2_predictor, d
             # If the image doesn't have transparency, no change is needed
             img = image_raw.convert('RGB')
         
-        hed = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution, enhance=True, strength=0.5) 
+        hed = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution, enhance=False) 
         hed_enhanced = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution, enhance=True, strength=0.5) 
         hed = np.asarray(hed)
         hed_enhanced = np.asarray(hed_enhanced)
