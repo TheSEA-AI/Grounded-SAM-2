@@ -258,7 +258,7 @@ def product_outline_extraction_by_mask_multiple_product_types_for_product_plain(
         white_array = white_array * mask_all
         white_array = white_array * mask
 
-        hed = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution) 
+        hed = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution).convert('RGB')
         hed = hed * mask_all
         hed = hed*mask
         hed = np.where(white_array>0, white_array, hed)
@@ -380,7 +380,7 @@ def product_outline_extraction_by_mask_multiple_product_types(args, hedDetector,
             white_array = white_array * mask_all
             white_array = white_array * mask
 
-            hed = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution) 
+            hed = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution).convert('RGB')
             hed = hed * mask_all
             hed = hed*mask
             hed = np.where(white_array>0, white_array, hed)
@@ -942,7 +942,7 @@ def image_outline_re_extraction_by_mask_multiple_product_types(hedDetector, grou
     white_array = white_array * mask_all
     white_array = white_array * mask
 
-    hed = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution) 
+    hed = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution).convert('RGB')
     hed = hed * mask_all
     hed = np.where(white_array>0, white_array, hed)
 
@@ -1060,8 +1060,8 @@ def simple_hed_extraction_for_transparent_product(hedDetector, sam2_predictor, d
             # If the image doesn't have transparency, no change is needed
             img = image_raw.convert('RGB')
         
-        hed = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution, enhance=True, strength=0.5) 
-        hed_enhanced = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution, enhance=True, strength=0.5) 
+        hed = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution, enhance=True, strength=0.5).convert('RGB') 
+        hed_enhanced = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution, enhance=True, strength=0.5).convert('RGB')
         hed = np.asarray(hed)
         hed_enhanced = np.asarray(hed_enhanced)
 
