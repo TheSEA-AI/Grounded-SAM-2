@@ -82,7 +82,7 @@ def parse_args(input_args=None):
 
     parser.add_argument("--image_names", 
                         default=None, 
-                        type=ast.literal_eval, 
+                        type=lambda s: s.split(","), 
                         required=False,
                         help="The list of image names to be processed")
 

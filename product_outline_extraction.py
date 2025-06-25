@@ -103,6 +103,12 @@ def parse_args(input_args=None):
                         type=int, 
                         required=False,
                         help="The resolution of the hed image")
+    
+    parser.add_argument("--image_names", 
+                        default=None, 
+                        type=lambda s: s.split(","), 
+                        required=False,
+                        help="The list of image names to be processed")
 
     if input_args is not None:
         args = parser.parse_args(input_args)
@@ -284,112 +290,219 @@ def product_outline_extraction_by_mask_multiple_product_types(args, hedDetector,
     for img_path, img_name in zip(images_path, image_filename_list):
         #####################################
         #extract mask
-
-        image_source, image = load_image(img_path, image_dim)
-        sam2_predictor.set_image(image_source)
-        product_types = ["beauty product", "cosmetic product", "skincare product", "makeup product", "personal care product"]
-        mask_all = np.full((image_source.shape[1],image_source.shape[1]), True, dtype=bool)
-        for product_type in product_types:
-            boxes, _, _ = predict(
-                model=grounding_model,
-                image=image,
-                caption=product_type,
-                box_threshold=0.35,
-                text_threshold=0.25,
-                device = device
-            )
-
-            # process the box prompt for SAM 2
-            h, w, _ = image_source.shape
-            boxes = boxes * torch.Tensor([w, h, w, h])
-            input_boxes = box_convert(boxes=boxes, in_fmt="cxcywh", out_fmt="xyxy").numpy()
-            
-            if boxes.size(0) != 0:
-                masks, _, _ = sam2_predictor.predict(
-                    point_coords=None,
-                    point_labels=None,
-                    box=input_boxes,
-                    multimask_output=False,
+        if args.image_names is None:
+            image_source, image = load_image(img_path, image_dim)
+            sam2_predictor.set_image(image_source)
+            product_types = ["beauty product", "cosmetic product", "skincare product", "makeup product", "personal care product"]
+            mask_all = np.full((image_source.shape[1],image_source.shape[1]), True, dtype=bool)
+            for product_type in product_types:
+                boxes, _, _ = predict(
+                    model=grounding_model,
+                    image=image,
+                    caption=product_type,
+                    box_threshold=0.35,
+                    text_threshold=0.25,
+                    device = device
                 )
 
-                """
-                Post-process the output of the model to get the masks, scores, and logits for visualization
-                """
-                # convert the shape to (n, H, W)
-                if masks.ndim == 4:
-                    masks = masks.squeeze(1)
+                # process the box prompt for SAM 2
+                h, w, _ = image_source.shape
+                boxes = boxes * torch.Tensor([w, h, w, h])
+                input_boxes = box_convert(boxes=boxes, in_fmt="cxcywh", out_fmt="xyxy").numpy()
+                
+                if boxes.size(0) != 0:
+                    masks, _, _ = sam2_predictor.predict(
+                        point_coords=None,
+                        point_labels=None,
+                        box=input_boxes,
+                        multimask_output=False,
+                    )
 
-                for mask in masks:
-                    im = np.stack((mask,)*3, axis=-1)
-                    im = im.astype(np.uint8)*255
-                    imgray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-                    _, thresh = cv2.threshold(imgray, 127, 255, 0)
-                    contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-                    if len(contours) >= 50:
+                    """
+                    Post-process the output of the model to get the masks, scores, and logits for visualization
+                    """
+                    # convert the shape to (n, H, W)
+                    if masks.ndim == 4:
+                        masks = masks.squeeze(1)
+
+                    for mask in masks:
+                        im = np.stack((mask,)*3, axis=-1)
+                        im = im.astype(np.uint8)*255
+                        imgray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+                        _, thresh = cv2.threshold(imgray, 127, 255, 0)
+                        contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                        if len(contours) >= 50:
+                            continue
+                        mask_all = mask_all & ~mask.astype(bool)
+                else:
+                    continue
+                    #raise ValueError(f"the product outline in {img_name} cannot be extracted.")
+
+            if False in mask_all:
+                ##### fill holes inside product #######
+                mask_all = ~mask_all
+                mask_all = mask_all.astype(int)
+                mask_all = ndimage.binary_fill_holes(mask_all).astype(int)
+                mask_all = mask_all.astype(bool)
+                mask_all = ~mask_all
+                ##### fill holes inside product #######
+
+                ##### fill small holes outside product #######
+                ite = 8
+                mask_all = mask_all.astype(int)
+                mask_all = ndimage.binary_closing(mask_all,iterations=ite).astype(int)
+                mask_all = mask_all.astype(bool)
+                ##### fill small holes outside product #######
+
+                ##### flip surrounding pixels due to previous fill small holes outside product #######
+                mask_all[0:ite+2, :] = True
+                mask_all[:, 0:ite+2] = True
+                mask_all[image_dim-ite-1:, :] = True
+                mask_all[:, image_dim-ite-1:] = True
+                ##### flip surrounding pixels due to previous fill small holes outside product #######
+
+                mask_all = np.stack((mask_all,)*3, axis=-1)
+                ################
+
+                mask = ~mask_all
+                mask = mask.astype(np.uint8)
+                mask = cv2.dilate(mask, kernel, iterations=3)
+                mask = np.array(mask, dtype=bool)
+
+                image_raw = Image.open(img_path)#.convert("RGB")
+                if image_raw.mode in ('RGBA', 'LA') or (image_raw.mode == 'P' and 'transparency' in image_raw.info):
+                    # Create a white background image of the same size
+                    img = Image.new('RGBA', image_raw.size, (255, 255, 255, 255))  # White background
+                    # Paste the image on the white background using the alpha channel as a mask
+                    image_raw = image_raw.convert('RGBA')
+                    img.paste(image_raw, mask=image_raw.split()[3])
+                    # Convert the image to RGB mode (to remove the alpha channel)
+                    img = img.convert('RGB')
+                else:
+                    # If the image doesn't have transparency, no change is needed
+                    img = image_raw.convert('RGB')
+
+                white_array = np.ones((image_dim, image_dim, 3), dtype=np.uint8) * args.hed_value
+                white_array = white_array * mask_all
+                white_array = white_array * mask
+
+                hed = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution).convert('RGB')
+                hed = hed * mask_all
+                hed = hed*mask
+                hed = np.where(white_array>0, white_array, hed)
+                hed[hed > 60] = args.hed_value
+                hed[hed <= 60] = 0
+
+                img_masked = Image.fromarray(hed)
+                img_save_path = output_dir + '/' + img_name
+                img_masked.save(img_save_path, 'png')
+        else:
+            if img_name in args.image_names:
+                image_source, image = load_image(img_path, image_dim)
+                sam2_predictor.set_image(image_source)
+                product_types = ["beauty product", "cosmetic product", "skincare product", "makeup product", "personal care product"]
+                mask_all = np.full((image_source.shape[1],image_source.shape[1]), True, dtype=bool)
+                for product_type in product_types:
+                    boxes, _, _ = predict(
+                        model=grounding_model,
+                        image=image,
+                        caption=product_type,
+                        box_threshold=0.35,
+                        text_threshold=0.25,
+                        device = device
+                    )
+
+                    # process the box prompt for SAM 2
+                    h, w, _ = image_source.shape
+                    boxes = boxes * torch.Tensor([w, h, w, h])
+                    input_boxes = box_convert(boxes=boxes, in_fmt="cxcywh", out_fmt="xyxy").numpy()
+                    
+                    if boxes.size(0) != 0:
+                        masks, _, _ = sam2_predictor.predict(
+                            point_coords=None,
+                            point_labels=None,
+                            box=input_boxes,
+                            multimask_output=False,
+                        )
+
+                        """
+                        Post-process the output of the model to get the masks, scores, and logits for visualization
+                        """
+                        # convert the shape to (n, H, W)
+                        if masks.ndim == 4:
+                            masks = masks.squeeze(1)
+
+                        for mask in masks:
+                            im = np.stack((mask,)*3, axis=-1)
+                            im = im.astype(np.uint8)*255
+                            imgray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+                            _, thresh = cv2.threshold(imgray, 127, 255, 0)
+                            contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                            if len(contours) >= 50:
+                                continue
+                            mask_all = mask_all & ~mask.astype(bool)
+                    else:
                         continue
-                    mask_all = mask_all & ~mask.astype(bool)
-            else:
-                continue
-                #raise ValueError(f"the product outline in {img_name} cannot be extracted.")
+                        #raise ValueError(f"the product outline in {img_name} cannot be extracted.")
 
-        if False in mask_all:
-            ##### fill holes inside product #######
-            mask_all = ~mask_all
-            mask_all = mask_all.astype(int)
-            mask_all = ndimage.binary_fill_holes(mask_all).astype(int)
-            mask_all = mask_all.astype(bool)
-            mask_all = ~mask_all
-            ##### fill holes inside product #######
+                if False in mask_all:
+                    ##### fill holes inside product #######
+                    mask_all = ~mask_all
+                    mask_all = mask_all.astype(int)
+                    mask_all = ndimage.binary_fill_holes(mask_all).astype(int)
+                    mask_all = mask_all.astype(bool)
+                    mask_all = ~mask_all
+                    ##### fill holes inside product #######
 
-            ##### fill small holes outside product #######
-            ite = 8
-            mask_all = mask_all.astype(int)
-            mask_all = ndimage.binary_closing(mask_all,iterations=ite).astype(int)
-            mask_all = mask_all.astype(bool)
-            ##### fill small holes outside product #######
+                    ##### fill small holes outside product #######
+                    ite = 8
+                    mask_all = mask_all.astype(int)
+                    mask_all = ndimage.binary_closing(mask_all,iterations=ite).astype(int)
+                    mask_all = mask_all.astype(bool)
+                    ##### fill small holes outside product #######
 
-            ##### flip surrounding pixels due to previous fill small holes outside product #######
-            mask_all[0:ite+2, :] = True
-            mask_all[:, 0:ite+2] = True
-            mask_all[image_dim-ite-1:, :] = True
-            mask_all[:, image_dim-ite-1:] = True
-            ##### flip surrounding pixels due to previous fill small holes outside product #######
+                    ##### flip surrounding pixels due to previous fill small holes outside product #######
+                    mask_all[0:ite+2, :] = True
+                    mask_all[:, 0:ite+2] = True
+                    mask_all[image_dim-ite-1:, :] = True
+                    mask_all[:, image_dim-ite-1:] = True
+                    ##### flip surrounding pixels due to previous fill small holes outside product #######
 
-            mask_all = np.stack((mask_all,)*3, axis=-1)
-            ################
+                    mask_all = np.stack((mask_all,)*3, axis=-1)
+                    ################
 
-            mask = ~mask_all
-            mask = mask.astype(np.uint8)
-            mask = cv2.dilate(mask, kernel, iterations=3)
-            mask = np.array(mask, dtype=bool)
+                    mask = ~mask_all
+                    mask = mask.astype(np.uint8)
+                    mask = cv2.dilate(mask, kernel, iterations=3)
+                    mask = np.array(mask, dtype=bool)
 
-            image_raw = Image.open(img_path)#.convert("RGB")
-            if image_raw.mode in ('RGBA', 'LA') or (image_raw.mode == 'P' and 'transparency' in image_raw.info):
-                # Create a white background image of the same size
-                img = Image.new('RGBA', image_raw.size, (255, 255, 255, 255))  # White background
-                # Paste the image on the white background using the alpha channel as a mask
-                image_raw = image_raw.convert('RGBA')
-                img.paste(image_raw, mask=image_raw.split()[3])
-                # Convert the image to RGB mode (to remove the alpha channel)
-                img = img.convert('RGB')
-            else:
-                # If the image doesn't have transparency, no change is needed
-                img = image_raw.convert('RGB')
+                    image_raw = Image.open(img_path)#.convert("RGB")
+                    if image_raw.mode in ('RGBA', 'LA') or (image_raw.mode == 'P' and 'transparency' in image_raw.info):
+                        # Create a white background image of the same size
+                        img = Image.new('RGBA', image_raw.size, (255, 255, 255, 255))  # White background
+                        # Paste the image on the white background using the alpha channel as a mask
+                        image_raw = image_raw.convert('RGBA')
+                        img.paste(image_raw, mask=image_raw.split()[3])
+                        # Convert the image to RGB mode (to remove the alpha channel)
+                        img = img.convert('RGB')
+                    else:
+                        # If the image doesn't have transparency, no change is needed
+                        img = image_raw.convert('RGB')
 
-            white_array = np.ones((image_dim, image_dim, 3), dtype=np.uint8) * args.hed_value
-            white_array = white_array * mask_all
-            white_array = white_array * mask
+                    white_array = np.ones((image_dim, image_dim, 3), dtype=np.uint8) * args.hed_value
+                    white_array = white_array * mask_all
+                    white_array = white_array * mask
 
-            hed = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution).convert('RGB')
-            hed = hed * mask_all
-            hed = hed*mask
-            hed = np.where(white_array>0, white_array, hed)
-            hed[hed > 60] = args.hed_value
-            hed[hed <= 60] = 0
+                    hed = hedDetector(img, detect_resolution=3000, image_resolution=image_resolution).convert('RGB')
+                    hed = hed * mask_all
+                    hed = hed*mask
+                    hed = np.where(white_array>0, white_array, hed)
+                    hed[hed > 60] = args.hed_value
+                    hed[hed <= 60] = 0
 
-            img_masked = Image.fromarray(hed)
-            img_save_path = output_dir + '/' + img_name
-            img_masked.save(img_save_path, 'png')
+                    img_masked = Image.fromarray(hed)
+                    img_save_path = output_dir + '/' + img_name
+                    img_masked.save(img_save_path, 'png')        
 
 ## function for data hed background filtering
 def filter_hed(args, data_hed_background_dir, data_similarity_dict, similarity_threshold, product_images, candidate_num = 2, img_format = 'png', image_dim=1024):
@@ -816,26 +929,47 @@ def examine_image_hed(args, hedDetector, grounding_model, sam2_predictor, produc
 
   ##do re-extraction
   for img_name, img_path in zip(image_filename_list, images_path):
-      if img_name not in product_images:
-          remove = []
+    if args.image_names is None:
+        if img_name not in product_images:
+            remove = []
 
-          for k, v in img_similarity_dict_all.items():
-              data_simi_list = list(data_similarity_dict[k].values())
-              for k_product, v_product in v.items():
-                  if img_name == k_product:
-                      if min(data_simi_list) <= 0.1:
-                          v_product = v_product*10.0
-                      #print(f'img_name={img_name}, similarity={v_product}, similarity_threshold={similarity_threshold}')
-                      if v_product >= similarity_threshold:
-                          remove.append(True)
-                      else:
-                          remove.append(False)
-          
-          #print(f'remove={remove}')
-          if False not in remove:
-            #os.remove(img_path)
-            image_outline_re_extraction_by_mask_multiple_product_types(hedDetector, grounding_model, sam2_predictor, data_dir, img_path, img_name, device=device)
+            for k, v in img_similarity_dict_all.items():
+                data_simi_list = list(data_similarity_dict[k].values())
+                for k_product, v_product in v.items():
+                    if img_name == k_product:
+                        if min(data_simi_list) <= 0.1:
+                            v_product = v_product*10.0
+                        #print(f'img_name={img_name}, similarity={v_product}, similarity_threshold={similarity_threshold}')
+                        if v_product >= similarity_threshold:
+                            remove.append(True)
+                        else:
+                            remove.append(False)
+            
+            #print(f'remove={remove}')
+            if False not in remove:
+                #os.remove(img_path)
+                image_outline_re_extraction_by_mask_multiple_product_types(hedDetector, grounding_model, sam2_predictor, data_dir, img_path, img_name, device=device)
+    else:
+        if img_name in args.image_names:
+            if img_name not in product_images:
+                remove = []
 
+                for k, v in img_similarity_dict_all.items():
+                    data_simi_list = list(data_similarity_dict[k].values())
+                    for k_product, v_product in v.items():
+                        if img_name == k_product:
+                            if min(data_simi_list) <= 0.1:
+                                v_product = v_product*10.0
+                            #print(f'img_name={img_name}, similarity={v_product}, similarity_threshold={similarity_threshold}')
+                            if v_product >= similarity_threshold:
+                                remove.append(True)
+                            else:
+                                remove.append(False)
+                
+                #print(f'remove={remove}')
+                if False not in remove:
+                    #os.remove(img_path)
+                    image_outline_re_extraction_by_mask_multiple_product_types(hedDetector, grounding_model, sam2_predictor, data_dir, img_path, img_name, device=device)
 
 ##re-extract an image hed when hed is over-extracted.
 def image_outline_re_extraction_by_mask_multiple_product_types(hedDetector, grounding_model, sam2_predictor, data_dir, output_path, img_name, img_format = 'png', image_resolution = 1024, device='cuda'):
@@ -1191,9 +1325,11 @@ if __name__ == "__main__":
         #torch.autocast(device_type="cuda", dtype=torch.bfloat16).__enter__()
 
         product_outline_extraction_by_mask_multiple_product_types(args, hedDetector, grounding_model, sam2_predictor, args.input_dir, args.output_dir, args.img_format, image_resolution=args.output_img_resolution, device=device)
-        has_two_parts = check_product_plain_hed(args.output_dir)
-        if has_two_parts:
-            product_outline_extraction_by_mask_multiple_product_types_for_product_plain(args, hedDetector, grounding_model, sam2_predictor, args.input_dir, args.output_dir, args.img_format, image_resolution=args.output_img_resolution, device=device)
+        
+        if args.image_names is None:
+            has_two_parts = check_product_plain_hed(args.output_dir)
+            if has_two_parts:
+                product_outline_extraction_by_mask_multiple_product_types_for_product_plain(args, hedDetector, grounding_model, sam2_predictor, args.input_dir, args.output_dir, args.img_format, image_resolution=args.output_img_resolution, device=device)
 
         if args.product_images is not None:
             data_similarity_dict_all = filter_data(args, args.output_dir, args.data_hed_dir, args.product_images)
