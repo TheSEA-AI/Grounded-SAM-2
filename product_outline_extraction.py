@@ -1343,8 +1343,8 @@ if __name__ == "__main__":
         if args.product_images is not None:
             data_similarity_dict_all = filter_data(args, args.output_dir, args.data_hed_dir, args.product_images)
             filter_hed(args, args.output_dir, data_similarity_dict_all, args.similarity_threshold, args.product_images, candidate_num=args.candidate_num, image_dim=args.output_img_resolution)
-            examine_image_hed(args, hedDetector, grounding_model, sam2_predictor, args.product_images, args.input_dir, args.data_hed_dir, data_similarity_dict_all, args.similarity_threshold, device=device)
         
+        examine_image_hed(args, hedDetector, grounding_model, sam2_predictor, args.product_images, args.input_dir, args.data_hed_dir, data_similarity_dict_all, args.similarity_threshold, device=device)
         data_hed_transparent_dir = product_hed_transparent_bg(args, args.product_images, data_hed_bg_original)
         data_product_transparent_dir = product_transparent_bg(args, data_hed_transparent_dir)
         simple_hed_extraction_for_transparent_product(hedDetector, sam2_predictor, data_product_transparent_dir, image_resolution=args.output_img_resolution)
