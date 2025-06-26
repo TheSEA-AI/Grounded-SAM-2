@@ -504,16 +504,12 @@ def product_outline_extraction_by_mask_multiple_product_types(args, hedDetector,
                     img_save_path = output_dir + '/' + img_name
                     img_masked.save(img_save_path, 'png')        
 
-## function for data hed background filtering
-def filter_hed(args, data_hed_background_dir, data_similarity_dict, similarity_threshold, product_images, candidate_num = 2, img_format = 'png', image_dim=1024):
-
-    large_value = 100
-    kernel = np.ones((3, 3), np.uint8)
+def return_data_hed_bg_original(data_hed_background_dir):
 
     image_filename_list = [i for i in os.listdir(data_hed_background_dir)]
     images_path = [os.path.join(data_hed_background_dir, file_path)
                         for file_path in image_filename_list]
-
+    
     ## make a copy of origial hed images
     image_dirs = data_hed_background_dir.split('/')
     new_image_dir = '/'+image_dirs[0]
@@ -527,6 +523,18 @@ def filter_hed(args, data_hed_background_dir, data_similarity_dict, similarity_t
     for img_name, img_path in zip(image_filename_list, images_path):
         img = Image.open(img_path).convert("RGB")
         img.save(new_image_dir+'/'+img_name, 'png')
+    
+    return new_image_dir
+
+## function for data hed background filtering
+def filter_hed(args, data_hed_background_dir, data_similarity_dict, similarity_threshold, product_images, candidate_num = 2, img_format = 'png', image_dim=1024):
+
+    large_value = 100
+    kernel = np.ones((3, 3), np.uint8)
+
+    image_filename_list = [i for i in os.listdir(data_hed_background_dir)]
+    images_path = [os.path.join(data_hed_background_dir, file_path)
+                        for file_path in image_filename_list]
 
     ## calculate similarities
     img_similarity_dict_all = {}
@@ -687,7 +695,6 @@ def filter_hed(args, data_hed_background_dir, data_similarity_dict, similarity_t
                         if v > similarity_list[candidate_num-1]:
                             os.remove(img_path)
 
-    return new_image_dir
 
 ## the filtering for data is not enabled
 ## this is mainly for calculating data similarities to be used in hed filtering
@@ -1330,10 +1337,13 @@ if __name__ == "__main__":
             has_two_parts = check_product_plain_hed(args.output_dir)
             if has_two_parts:
                 product_outline_extraction_by_mask_multiple_product_types_for_product_plain(args, hedDetector, grounding_model, sam2_predictor, args.input_dir, args.output_dir, args.img_format, image_resolution=args.output_img_resolution, device=device)
-
+        
+        data_hed_bg_original = return_data_hed_bg_original(args.output_dir)
+        
         if args.product_images is not None:
             data_similarity_dict_all = filter_data(args, args.output_dir, args.data_hed_dir, args.product_images)
-            data_hed_bg_original = filter_hed(args, args.output_dir, data_similarity_dict_all, args.similarity_threshold, args.product_images, candidate_num=args.candidate_num, image_dim=args.output_img_resolution)
+            filter_hed(args, args.output_dir, data_similarity_dict_all, args.similarity_threshold, args.product_images, candidate_num=args.candidate_num, image_dim=args.output_img_resolution)
+        
         examine_image_hed(args, hedDetector, grounding_model, sam2_predictor, args.product_images, args.input_dir, args.data_hed_dir, data_similarity_dict_all, args.similarity_threshold, device=device)
         data_hed_transparent_dir = product_hed_transparent_bg(args, args.product_images, data_hed_bg_original)
         data_product_transparent_dir = product_transparent_bg(args, data_hed_transparent_dir)
