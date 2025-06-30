@@ -768,7 +768,7 @@ def product_hed_transparent_bg(args, product_images, data_hed_background_dir):
     data_hed_transparent_dir += 'data_hed_transparent'
     Path(data_hed_transparent_dir).mkdir(parents=True, exist_ok=True)
 
-    image_filename_list = [i for i in os.listdir(data_hed_background_dir) if i.endswith('.png')]
+    image_filename_list = [i for i in os.listdir(data_hed_background_dir) if i.endswith('.png') or i.endswith('.jpg') or i.endswith('.jpeg') or i.endswith('.webp')]
     images_path = [os.path.join(data_hed_background_dir, file_path)
                         for file_path in image_filename_list]
 
