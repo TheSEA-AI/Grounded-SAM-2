@@ -338,7 +338,7 @@ def product_outline_extraction_by_mask_multiple_product_types(args, hedDetector,
                     continue
                     #raise ValueError(f"the product outline in {img_name} cannot be extracted.")
 
-            if False in mask_all:
+            if (False in mask_all) or ('product_plain' in img_name):
                 ##### fill holes inside product #######
                 mask_all = ~mask_all
                 mask_all = mask_all.astype(int)
